@@ -1,28 +1,17 @@
 const express = require('express');
 const cors = require('cors');
 
-// Importação das suas rotas
-const authRoutes = require('./routes/authRoutes');
-const operatorRoutes = require('./routes/operatorRoutes');
-
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Registro das rotas na API
-app.use('/api/auth', authRoutes);
-app.use('/api/operators', operatorRoutes);
-
-// Tratamento global de erros
-app.use((err, req, res, next) => {
-  const status = err.status || 500;
-  const message = err.message || 'Erro interno no servidor';
-  const code = err.code || 'INTERNAL_ERROR';
-
-  return res.status(status).json({
-    error: { code, message }
-  });
+// Rota de verificação: confirma que a API está no ar
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true });
 });
+
+// TODO (P2, P3, P4): registrar aqui as rotas de stations, observations, operators e auth
+// TODO (Márcio): errorHandler no final, depois de todas as rotas
 
 module.exports = app;
