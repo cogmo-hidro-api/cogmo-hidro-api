@@ -4,7 +4,7 @@ const authMiddleware = require('../middlewares/auth');
 
 const router = Router();
 
-router.use(authMiddleware); // Protege todas as rotas de operadores com JWT[cite: 6, 8]
+router.use(authMiddleware); // Protege todas as rotas de operadores com JWT
 
 router.get('/', operatorController.getAll);
 router.get('/:id', operatorController.getById);

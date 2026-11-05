@@ -42,7 +42,7 @@ const operatorService = {
     operatorRepository.delete(id);
   },
 
-  // --- Regras N:N (Estação <-> Operador) ---[cite: 4, 8]
+  // Regras N:N (Estação <-> Operador)
   getOperatorsByStation(stationId) {
     return operatorRepository.findOperatorsByStation(stationId);
   },

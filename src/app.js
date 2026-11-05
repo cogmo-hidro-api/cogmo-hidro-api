@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 
-// Importação das suas rotas (P4)[cite: 8, 10]
+// Importação das suas rotas
 const authRoutes = require('./routes/authRoutes');
 const operatorRoutes = require('./routes/operatorRoutes');
 
@@ -10,11 +10,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Registro das rotas na API[cite: 8]
+// Registro das rotas na API
 app.use('/api/auth', authRoutes);
 app.use('/api/operators', operatorRoutes);
 
-// Tratamento global de erros (gerenciado pelo P5)[cite: 9, 10, 11]
+// Tratamento global de erros
 app.use((err, req, res, next) => {
   const status = err.status || 500;
   const message = err.message || 'Erro interno no servidor';

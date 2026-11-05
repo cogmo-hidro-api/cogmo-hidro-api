@@ -33,7 +33,7 @@ const operatorRepository = {
     return db.prepare('DELETE FROM operators WHERE id = ?').run(id);
   },
 
-  // --- Rotas N:N (Estação <-> Operador) ---[cite: 4, 8]
+  // Rotas N:N (Estação <-> Operador) 
   findOperatorsByStation(stationId) {
     return db.prepare(`
       SELECT o.id, o.name, o.email, o.phone, o.type, so.role, so.linked_at

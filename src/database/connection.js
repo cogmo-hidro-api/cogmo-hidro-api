@@ -12,7 +12,7 @@ if (!fs.existsSync(dbDir)) {
 
 const db = new Database(dbPath);
 
-// Exigência do projeto: Habilitar FK em toda conexão[cite: 1, 6]
+// Habilitar FK em toda conexão
 db.pragma('foreign_keys = ON');
 
 module.exports = db;
