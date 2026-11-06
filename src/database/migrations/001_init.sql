@@ -35,3 +35,22 @@ CREATE TABLE IF NOT EXISTS station_operators (
   linked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   PRIMARY KEY (station_id, operator_id)
 );
+
+CREATE TABLE IF NOT EXISTS observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    station_id INTEGER NOT NULL REFERENCES stations (id) ON DELETE CASCADE,
+    metric TEXT NOT NULL CHECK (metric IN ('level', 'rain')),
+    value REAL NOT NULL,
+    unit TEXT NOT NULL,
+    observed_at TEXT NOT NULL, -- ISO 8601 UTC: ex. 2026-11-03T12:00:00Z
+    responsible_id INTEGER REFERENCES operators (id) ON DELETE SET NULL,
+    
+    CHECK (
+        (metric = 'level' AND unit = 'm') OR
+        (metric = 'rain' AND unit = 'mm/h')
+    ),
+    UNIQUE (station_id, metric, observed_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_obs_series
+    ON observations (station_id, metric, observed_at);

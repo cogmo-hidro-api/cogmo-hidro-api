@@ -8,7 +8,6 @@ if (!name || !email || !password) {
 throw new AppError(400, 'INVALID_INPUT', 'Preencha todos os campos obrigatórios');
 }
 
-TypeScript
 const userExists = userRepository.findByEmail(email);
 if (userExists) {
   throw new AppError(409, 'EMAIL_ALREADY_EXISTS', 'E-mail já cadastrado');
@@ -22,7 +21,6 @@ if (!email || !password) {
 throw new AppError(400, 'INVALID_INPUT', 'E-mail e senha são obrigatórios');
 }
 
-TypeScript
 const user = userRepository.findByEmail(email);
 if (!user) {
   throw new AppError(401, 'INVALID_CREDENTIALS', 'Credenciais inválidas');

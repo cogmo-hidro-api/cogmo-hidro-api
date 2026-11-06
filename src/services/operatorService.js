@@ -15,7 +15,6 @@ create(data) {
 const { name, email, phone, type } = data;
 const validTypes = ['tecnico', 'supervisor', 'pesquisador'];
 
-JavaScript
 if (!name || !email || !type) {
   throw new AppError(400, 'INVALID_INPUT', 'Nome, email e tipo são obrigatórios');
 }
