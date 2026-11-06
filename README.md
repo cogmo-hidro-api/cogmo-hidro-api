@@ -16,8 +16,8 @@
 
 | Papel | Integrante | GitHub |
 | --- | --- | --- |
-| P1 · Banco de dados | | |
-| P2 · Estações + Dashboard | | |
+| P1 · Banco de dados | Daltro Oliveira Vinuto | https://github.com/Daltro-Oliveira-Vinuto |
+| P2 · Estações + Dashboard | Kyara Esteves de Sousa | https://github.com/Kyara2 |
 | P3 · Observações + Série | | |
 | P4 · Autenticação + Operadores | | |
 | P5 · Tech lead / QA / Documentação | Márcio Liberato | [@mvictorliberato-maker](https://github.com/mvictorliberato-maker) |
