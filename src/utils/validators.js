@@ -33,4 +33,25 @@ function parseHours(value) {
   return hours;
 }
 
-module.exports = { METRIC_UNITS, parseId, parseMetric, parseHours };
+// value: número obrigatório; chuva não pode ser negativa
+function parseValue(value, metric) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new AppError(400, 'INVALID_VALUE', 'value deve ser um número');
+  }
+  if (metric === 'rain' && value < 0) {
+    throw new AppError(400, 'INVALID_VALUE', 'Chuva (rain) não pode ser negativa');
+  }
+  return value;
+}
+
+// observed_at: ISO 8601 em UTC, sem milissegundos. Ex: 2026-11-03T12:00:00Z
+function parseObservedAt(value) {
+  const formatoOk = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value);
+  // a data também tem que existir de verdade (ex: 31/02 não passa)
+  if (!formatoOk || Number.isNaN(Date.parse(value)) || new Date(value).toISOString().slice(0, 19) + 'Z' !== value) {
+    throw new AppError(400, 'INVALID_OBSERVED_AT', 'observed_at deve estar em UTC no formato 2026-11-03T12:00:00Z');
+  }
+  return value;
+}
+
+module.exports = { METRIC_UNITS, parseId, parseMetric, parseHours, parseValue, parseObservedAt };
