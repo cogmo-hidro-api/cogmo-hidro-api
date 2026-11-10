@@ -5,6 +5,8 @@ const seriesRoutes = require('./routes/seriesRoutes');
 const observationRoutes = require('./routes/observationRoutes');
 const stationObservationRoutes = require('./routes/stationObservationRoutes');
 const simulatedNotice = require('./middlewares/simulatedNotice');
+const swaggerUi = require('swagger-ui-express');
+const openapi = require('./docs/openapi');
 
 const authRoutes = require('./routes/authRoutes');
 const operatorRoutes = require('./routes/operatorRoutes');
@@ -20,6 +22,9 @@ app.use(express.json());
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
+
+// Documentação interativa (Swagger) em /api/docs
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapi));
 
 // Aviso de dados simulados em todas as respostas da API (regra Cogmo).
 // Fica depois do /api/health, que continua devolvendo só { ok: true }.
