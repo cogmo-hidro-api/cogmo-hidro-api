@@ -10,7 +10,7 @@
 
 ## Orientador
 
-<!-- TODO: link para o perfil do professor orientador -->
+Prof. Tiago Segato
 
 ## Equipe
 
@@ -69,6 +69,7 @@ cogmo-hidro-api/
 ├── docs/
 │   ├── der.png               # Diagrama Entidade-Relacionamento
 │   ├── mer.png               # Modelo conceitual
+│   ├── roteiro-demo.md       # Roteiro da apresentação
 │   └── diario/               # Diário de trabalho por sprint
 ├── requests/
 │   └── api.http              # Chamadas de teste prontas
@@ -76,6 +77,7 @@ cogmo-hidro-api/
     ├── server.js             # Sobe o servidor
     ├── app.js                # Configura Express, middlewares e rotas
     ├── config/               # Leitura de variáveis de ambiente
+    ├── docs/                 # Especificação OpenAPI (Swagger em /api/docs)
     ├── database/             # Conexão, migrations e seed
     ├── middlewares/          # Autenticação, aviso de dados simulados, erros
     ├── utils/                # Validadores e classe de erro
@@ -94,7 +96,7 @@ cogmo-hidro-api/
 
 ## Documentação da API
 
-A documentação interativa fica disponível em `/api/docs` (Swagger UI) com o servidor rodando.
+A documentação interativa fica em **`http://localhost:3000/api/docs`** (Swagger UI) com o servidor rodando. Para testar rotas com cadeado, faça login em `POST /auth/login`, copie o `token` e clique em **Authorize**. A especificação está em [`src/docs/openapi.js`](src/docs/openapi.js).
 
 ### Endpoints Principais
 
