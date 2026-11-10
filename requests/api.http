@@ -1,28 +1,331 @@
 ### Chamadas de teste (VS Code + extensão REST Client: clique em "Send Request")
-@base = http://localhost:3000
+### Antes: npm run db:reset && npm run dev
+### Rode na ordem: o login guarda o token que as rotas protegidas usam.
 
-### Health check
-GET {{base}}/api/health
+@base = http://localhost:3000/api
 
-### --- Contrato Cogmo (ativar conforme as rotas ficarem prontas) ---
+### Health check → 200 { ok: true }
+GET {{base}}/health
 
-### Listar estações
-# GET {{base}}/api/stations
 
-### Resumo da estação 1
-# GET {{base}}/api/stations/1/summary
+############################################################
+### 1. AUTENTICAÇÃO
+############################################################
 
-### Série de nível, 24 h
-# GET {{base}}/api/stations/1/series?metric=level&hours=24
+### Cadastrar usuário → 201 (rodar de novo dá 409 EMAIL_ALREADY_EXISTS)
+POST {{base}}/auth/register
+Content-Type: application/json
 
-### Série de chuva, 24 h
-# GET {{base}}/api/stations/1/series?metric=rain&hours=24
+{
+  "name": "Demo",
+  "email": "demo@cogmo.test",
+  "password": "123456"
+}
 
-### Erro esperado: métrica inválida (400)
-# GET {{base}}/api/stations/1/series?metric=temp&hours=24
+### Login → 200 { token } (guarda o token em {{token}})
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
 
-### Erro esperado: horas fora da faixa (400)
-# GET {{base}}/api/stations/1/series?metric=level&hours=73
+{
+  "email": "demo@cogmo.test",
+  "password": "123456"
+}
 
-### Erro esperado: estação inexistente (404)
-# GET {{base}}/api/stations/999/summary
+@token = {{login.response.body.token}}
+
+### Erro: senha errada → 401 INVALID_CREDENTIALS
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo@cogmo.test",
+  "password": "errada"
+}
+
+
+############################################################
+### 2. CONTRATO COGMO (rotas públicas)
+############################################################
+
+### Listar estações → 200
+GET {{base}}/stations
+
+### Resumo da estação 1 (última leitura de nível e de chuva) → 200
+GET {{base}}/stations/1/summary
+
+### Série de nível, 24 h → 200 (unit: m)
+GET {{base}}/stations/1/series?metric=level&hours=24
+
+### Série de chuva, 24 h → 200 (unit: mm/h)
+GET {{base}}/stations/1/series?metric=rain&hours=24
+
+### Série de nível, 72 h (máximo) → 200
+GET {{base}}/stations/1/series?metric=level&hours=72
+
+### Série sem hours → usa 24
+GET {{base}}/stations/1/series?metric=level
+
+### Erro: sem metric → 400 MISSING_METRIC
+GET {{base}}/stations/1/series
+
+### Erro: métrica inválida → 400 INVALID_METRIC
+GET {{base}}/stations/1/series?metric=temp&hours=24
+
+### Erro: hours = 0 → 400 INVALID_HOURS
+GET {{base}}/stations/1/series?metric=level&hours=0
+
+### Erro: hours = 73 → 400 INVALID_HOURS
+GET {{base}}/stations/1/series?metric=level&hours=73
+
+### Erro: hours não numérico → 400 INVALID_HOURS
+GET {{base}}/stations/1/series?metric=level&hours=abc
+
+### Erro: id inválido → 400 INVALID_ID
+GET {{base}}/stations/abc/series?metric=level
+
+### Erro: estação inexistente na série → 404 STATION_NOT_FOUND
+GET {{base}}/stations/999/series?metric=level
+
+### Erro: estação inexistente no resumo → 404
+GET {{base}}/stations/999/summary
+
+
+############################################################
+### 3. ESTAÇÕES (CRUD: leitura pública, escrita com token)
+############################################################
+
+### Buscar estação 1 → 200
+GET {{base}}/stations/1
+
+### Criar estação → 201
+POST {{base}}/stations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "EST-900",
+  "name": "Estação Teste",
+  "river": "Rio Fictício",
+  "municipality": "Cidade Fictícia",
+  "state": "DF",
+  "latitude": -15.79,
+  "longitude": -47.88
+}
+
+### Erro: criar sem token → 401
+POST {{base}}/stations
+Content-Type: application/json
+
+{
+  "code": "EST-901",
+  "name": "Sem token",
+  "river": "Rio",
+  "municipality": "Cidade",
+  "state": "DF"
+}
+
+### Erro: code repetido → 409
+POST {{base}}/stations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "EST-900",
+  "name": "Repetida",
+  "river": "Rio",
+  "municipality": "Cidade",
+  "state": "DF"
+}
+
+### Dashboard da estação 1 (estação + leituras 24 h com responsável + operadores) → 200
+GET {{base}}/stations/1/dashboard
+
+
+############################################################
+### 4. LEITURAS (observations)
+############################################################
+
+### Listar leituras (filtros opcionais) → 200
+GET {{base}}/observations?station_id=1&metric=level
+
+### Buscar leitura 1 → 200
+GET {{base}}/observations/1
+
+### Leituras da estação 1 (1:N) → 200
+GET {{base}}/stations/1/observations?metric=rain
+
+### Criar leitura → 201 (unit sai da metric)
+POST {{base}}/observations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "station_id": 1,
+  "metric": "level",
+  "value": 2.75,
+  "observed_at": "2030-01-01T12:00:00Z",
+  "responsible_id": 1
+}
+
+### Erro: mesma leitura no mesmo horário → 409 OBSERVATION_EXISTS
+POST {{base}}/observations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "station_id": 1,
+  "metric": "level",
+  "value": 2.80,
+  "observed_at": "2030-01-01T12:00:00Z"
+}
+
+### Criar leitura pela estação (1:N) → 201
+POST {{base}}/stations/1/observations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "metric": "rain",
+  "value": 4.2,
+  "observed_at": "2030-01-01T12:00:00Z"
+}
+
+### Erro: data fora do padrão UTC → 400 INVALID_OBSERVED_AT
+POST {{base}}/observations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "station_id": 1,
+  "metric": "level",
+  "value": 2.5,
+  "observed_at": "01/01/2030 12:00"
+}
+
+### Erro: chuva negativa → 400 INVALID_VALUE
+POST {{base}}/observations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "station_id": 1,
+  "metric": "rain",
+  "value": -1,
+  "observed_at": "2030-01-01T13:00:00Z"
+}
+
+### Erro: estação inexistente → 404 STATION_NOT_FOUND
+POST {{base}}/observations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "station_id": 999,
+  "metric": "level",
+  "value": 2.5,
+  "observed_at": "2030-01-01T12:00:00Z"
+}
+
+### Erro: leitura inexistente → 404 OBSERVATION_NOT_FOUND
+GET {{base}}/observations/99999
+
+### Responsável pela leitura 1 (só id, nome e tipo) → 200
+GET {{base}}/observations/1/responsible
+
+### Trocar responsável → 200
+PUT {{base}}/observations/1/responsible
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "operator_id": 2
+}
+
+### Erro: operador inexistente → 404 OPERATOR_NOT_FOUND
+PUT {{base}}/observations/1/responsible
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "operator_id": 999
+}
+
+
+############################################################
+### 5. OPERADORES (tudo com token: tem dado pessoal)
+############################################################
+
+### Erro: listar sem token → 401
+GET {{base}}/operators
+
+### Listar operadores → 200
+GET {{base}}/operators
+Authorization: Bearer {{token}}
+
+### Criar operador → 201
+POST {{base}}/operators
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Operador Teste",
+  "email": "operador.teste@cogmo.test",
+  "phone": "61999990000",
+  "type": "tecnico"
+}
+
+### Erro: type inválido → 400 INVALID_TYPE
+POST {{base}}/operators
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Tipo errado",
+  "email": "tipo.errado@cogmo.test",
+  "type": "gerente"
+}
+
+### Erro: operador inexistente → 404 OPERATOR_NOT_FOUND
+GET {{base}}/operators/999
+Authorization: Bearer {{token}}
+
+
+############################################################
+### 6. VÍNCULO ESTAÇÃO ↔ OPERADOR (N:N, com token)
+############################################################
+
+### Operadores da estação 1 → 200
+GET {{base}}/stations/1/operators
+Authorization: Bearer {{token}}
+
+### Vincular operador 1 à estação 2 → 201
+POST {{base}}/stations/2/operators
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "operator_id": 1,
+  "role": "técnico de campo"
+}
+
+### Erro: vínculo repetido → 409 LINK_ALREADY_EXISTS
+POST {{base}}/stations/2/operators
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "operator_id": 1
+}
+
+### Desvincular → 204
+DELETE {{base}}/stations/2/operators/1
+Authorization: Bearer {{token}}
+
+
+############################################################
+### 7. ROTA INEXISTENTE
+############################################################
+
+### Erro: rota que não existe → 404 ROUTE_NOT_FOUND
+GET {{base}}/rota-que-nao-existe

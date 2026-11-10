@@ -1,7 +1,5 @@
 const db = require('../database/connection');
 
-const COLUMNS = 'id, station_id, metric, value, unit, observed_at, responsible_id';
-
 const observationRepository = {
   stationExists(stationId) {
     return !!db.prepare('SELECT 1 FROM stations WHERE id = ?').get(stationId);
@@ -50,7 +48,7 @@ const observationRepository = {
 
   // Filtros opcionais: station_id e metric. Mais recentes primeiro.
   findAll({ stationId, metric } = {}) {
-    let sql = `SELECT ${COLUMNS} FROM observations WHERE 1 = 1`;
+    let sql = 'SELECT id, station_id, metric, value, unit, observed_at, responsible_id FROM observations WHERE 1 = 1';
     const params = [];
     if (stationId) {
       sql += ' AND station_id = ?';
@@ -65,7 +63,9 @@ const observationRepository = {
   },
 
   findById(id) {
-    return db.prepare(`SELECT ${COLUMNS} FROM observations WHERE id = ?`).get(id);
+    return db
+      .prepare('SELECT id, station_id, metric, value, unit, observed_at, responsible_id FROM observations WHERE id = ?')
+      .get(id);
   },
 
   // Já existe leitura da mesma estação/métrica nesse horário? (ignora a própria no update)
@@ -100,10 +100,11 @@ const observationRepository = {
 
   // ---------- Responsável pela leitura (1:N Operador -> Leituras) ----------
 
+  // Rota pública: devolve só id, nome e tipo (e-mail e telefone são dado pessoal)
   findResponsible(observationId) {
     return db
       .prepare(`
-        SELECT op.id, op.name, op.email, op.phone, op.type
+        SELECT op.id, op.name, op.type
         FROM observations o
         JOIN operators op ON op.id = o.responsible_id
         WHERE o.id = ?

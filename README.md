@@ -10,7 +10,7 @@
 
 ## Orientador
 
-<!-- TODO: link para o perfil do professor orientador -->
+Prof. Tiago Segato
 
 ## Equipe
 
@@ -18,8 +18,8 @@
 | --- | --- | --- |
 | P1 · Banco de dados | Daltro Oliveira Vinuto | https://github.com/Daltro-Oliveira-Vinuto |
 | P2 · Estações + Dashboard | Kyara Esteves de Sousa | https://github.com/Kyara2 |
-| P3 · Observações + Série | | |
-| P4 · Autenticação + Operadores | | |
+| P3 · Observações + Série | Márcio Liberato (assumiu a parte) | [@mvictorliberato-maker](https://github.com/mvictorliberato-maker) |
+| P4 · Autenticação + Operadores | Laércio | [@Laercio13](https://github.com/Laercio13) |
 | P5 · Tech lead / QA / Documentação | Márcio Liberato | [@mvictorliberato-maker](https://github.com/mvictorliberato-maker) |
 
 ## Sumário
@@ -69,6 +69,7 @@ cogmo-hidro-api/
 ├── docs/
 │   ├── der.png               # Diagrama Entidade-Relacionamento
 │   ├── mer.png               # Modelo conceitual
+│   ├── roteiro-demo.md       # Roteiro da apresentação
 │   └── diario/               # Diário de trabalho por sprint
 ├── requests/
 │   └── api.http              # Chamadas de teste prontas
@@ -76,6 +77,7 @@ cogmo-hidro-api/
     ├── server.js             # Sobe o servidor
     ├── app.js                # Configura Express, middlewares e rotas
     ├── config/               # Leitura de variáveis de ambiente
+    ├── docs/                 # Especificação OpenAPI (Swagger em /api/docs)
     ├── database/             # Conexão, migrations e seed
     ├── middlewares/          # Autenticação, aviso de dados simulados, erros
     ├── utils/                # Validadores e classe de erro
@@ -94,20 +96,59 @@ cogmo-hidro-api/
 
 ## Documentação da API
 
-A documentação interativa fica disponível em `/api/docs` (Swagger UI) com o servidor rodando.
+A documentação interativa fica em **`http://localhost:3000/api/docs`** (Swagger UI) com o servidor rodando. Para testar rotas com cadeado, faça login em `POST /auth/login`, copie o `token` e clique em **Authorize**. A especificação está em [`src/docs/openapi.js`](src/docs/openapi.js).
 
 ### Endpoints Principais
 
+Leitura de estações e leituras é pública; toda escrita exige `Authorization: Bearer <token>`. Rotas de operadores exigem token em tudo, porque têm e-mail e telefone. Exemplos prontos de cada chamada (inclusive os erros) estão em [`requests/api.http`](requests/api.http).
+
+**Contrato Cogmo**
+
 | Método | Endpoint | Descrição | Autenticação |
 | --- | --- | --- | --- |
-| GET | `/api/health` | Verifica se a API está no ar | Pública |
 | GET | `/api/stations` | Lista as estações | Pública |
-| GET | `/api/stations/{id}/summary` | Últimas leituras de nível e chuva | Pública |
-| GET | `/api/stations/{id}/series?metric=level&hours=24` | Histórico de nível (m) | Pública |
-| GET | `/api/stations/{id}/series?metric=rain&hours=24` | Histórico de chuva (mm/h) | Pública |
-| GET | `/api/stations/{id}/dashboard` | Estação + observações + responsáveis + operadores | Pública |
-| POST | `/api/auth/login` | Retorna token JWT | Pública |
-| ... | ... | ... | ... |
+| GET | `/api/stations/{id}/summary` | Última leitura de nível (m) e de chuva (mm/h) | Pública |
+| GET | `/api/stations/{id}/series?metric=level&hours=24` | Série de nível (m), `hours` de 1 a 72 | Pública |
+| GET | `/api/stations/{id}/series?metric=rain&hours=24` | Série de chuva (mm/h), `hours` de 1 a 72 | Pública |
+
+**Autenticação**
+
+| Método | Endpoint | Descrição | Autenticação |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | Cria usuário (senha com bcrypt) | Pública |
+| POST | `/api/auth/login` | Retorna token JWT (validade 1 h) | Pública |
+
+**CRUD das 3 entidades**
+
+| Método | Endpoint | Descrição | Autenticação |
+| --- | --- | --- | --- |
+| GET | `/api/stations/{id}` | Busca uma estação | Pública |
+| POST / PUT / DELETE | `/api/stations` · `/api/stations/{id}` | Cria, edita e remove estação | Token |
+| GET | `/api/observations?station_id=&metric=` | Lista leituras (filtros opcionais) | Pública |
+| GET | `/api/observations/{id}` | Busca uma leitura | Pública |
+| POST / PUT / DELETE | `/api/observations` · `/api/observations/{id}` | Cria, edita e remove leitura | Token |
+| GET / POST / PUT / DELETE | `/api/operators` · `/api/operators/{id}` | CRUD de operadores | Token |
+
+**Relacionamentos e rota composta**
+
+| Método | Endpoint | Relação | Autenticação |
+| --- | --- | --- | --- |
+| GET | `/api/stations/{id}/observations` | 1:N Estação → Leituras | Pública |
+| POST | `/api/stations/{id}/observations` | 1:N Estação → Leituras | Token |
+| GET | `/api/stations/{id}/operators` | N:N Estação ↔ Operadores | Token |
+| POST | `/api/stations/{id}/operators` | N:N vincular (`{ operator_id, role }`) | Token |
+| DELETE | `/api/stations/{id}/operators/{operatorId}` | N:N desvincular | Token |
+| GET | `/api/observations/{id}/responsible` | 1:N Operador → Leituras (só id, nome e tipo) | Pública |
+| PUT | `/api/observations/{id}/responsible` | Troca o responsável (`{ operator_id }`) | Token |
+| GET | `/api/stations/{id}/dashboard` | Estação + leituras 24 h com responsável + operadores | Pública |
+
+**Formato de erro** (igual em todas as rotas):
+
+```json
+{ "error": { "code": "INVALID_METRIC", "message": "metric deve ser level ou rain" } }
+```
+
+Status usados: 200, 201, 204, 400 (dado inválido), 401 (sem token), 404 (não existe), 409 (duplicado), 500 (erro inesperado, sem expor detalhes).
 
 > **Detalhes:** consulte o Swagger para schemas de request/response, parâmetros e exemplos.
 
@@ -139,12 +180,14 @@ A documentação interativa fica disponível em `/api/docs` (Swagger UI) com o s
 
 ## Decisões Técnicas
 
-<!-- TODO: registrar aqui cada decisão importante e o motivo -->
 - Horários sempre em **UTC, formato ISO 8601**.
 - Nível em **metros (m)**, chuva em **milímetros por hora (mm/h)**; o banco impede misturar métrica e unidade.
 - **Lacunas não são preenchidas**: hora sem leitura simplesmente não aparece na série.
 - A janela de horas da série termina na **última leitura da estação**, porque o seed usa datas fixas para ser repetível.
 - Todas as consultas SQL são **parametrizadas**.
+- O aviso de **dados simulados** (`simulated` e `notice`) é colocado por um único middleware em `/api`, então nenhuma rota esquece.
+- Rotas que mostram **e-mail e telefone** de operador exigem token; a rota pública de responsável mostra só id, nome e tipo.
+- Leitura repetida (mesma estação, métrica e horário) dá **409**, garantido também pelo `UNIQUE` no banco.
 
 ## Deploy (opcional)
 
