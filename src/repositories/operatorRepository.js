@@ -8,7 +8,9 @@ const operatorRepository = {
   findById(id) {
     return db.prepare('SELECT id, name, email, phone, type FROM operators WHERE id = ?').get(id);
   },
-
+stationExists(stationId) {
+    return !!db.prepare('SELECT 1 FROM stations WHERE id = ?').get(stationId);
+  },
   findByEmail(email) {
     return db.prepare('SELECT * FROM operators WHERE email = ?').get(email);
   },
