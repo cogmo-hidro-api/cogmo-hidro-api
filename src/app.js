@@ -21,9 +21,9 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
-// Aviso de dados simulados nas respostas de estações e leituras (regra Cogmo)
-app.use('/api/stations', simulatedNotice);
-app.use('/api/observations', simulatedNotice);
+// Aviso de dados simulados em todas as respostas da API (regra Cogmo).
+// Fica depois do /api/health, que continua devolvendo só { ok: true }.
+app.use('/api', simulatedNotice);
 
 // Rotas da API
 app.use('/api/auth', authRoutes);
