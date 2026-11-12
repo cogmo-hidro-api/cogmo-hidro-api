@@ -89,10 +89,94 @@ cogmo-hidro-api/
 
 ## Diagrama de Banco de Dados
 
-<!-- TODO (P1): adicionar docs/der.png -->
 ![Diagrama de Banco de Dados](docs/der.png)
 
-> **Descrição:** <!-- TODO (P1): descrever entidades, relacionamentos (1:N, N:N, 1:N responsável) e campos críticos -->
+Modelo conceitual (MER): [`docs/mer.png`](docs/mer.png). Os fontes dos dois diagramas estão em `docs/der.dot` e `docs/mer.dot` (Graphviz: `dot -Tpng docs/der.dot -o docs/der.png`).
+
+> **Descrição:** o banco tem **5 tabelas**, definidas em `src/database/migrations/001_init.sql`.
+>
+> - **`stations`** (Estação): ponto de monitoramento. `id` é a chave primária numérica usada nas rotas; `code` (ex.: `EST-001`) é o código de negócio e é `UNIQUE`.
+> - **`observations`** (Leitura): uma medição de `level` (m) ou `rain` (mm/h) em um horário `observed_at` (texto ISO 8601 UTC).
+> - **`operators`** (Operador): técnico, supervisor ou pesquisador (`CHECK` no `type`); `email` é `UNIQUE`.
+> - **`station_operators`**: tabela associativa da relação N:N, com a função (`role`) de cada operador na estação.
+> - **`users`**: só para login (JWT); não se relaciona com as outras.
+>
+> **Relacionamentos**
+>
+> | Relação | Como é feita | Ao apagar |
+> | --- | --- | --- |
+> | 1:N Estação → Leituras | `observations.station_id` → `stations.id` (`NOT NULL`) | apagar a estação apaga as leituras (`ON DELETE CASCADE`) |
+> | N:N Estação ↔ Operador | `station_operators (station_id, operator_id)`, chave primária composta | apagar estação ou operador apaga só o vínculo (`CASCADE`) |
+> | 1:N Operador → Leituras (responsável) | `observations.responsible_id` → `operators.id` (opcional, `NULL` permitido) | apagar o operador deixa a leitura sem responsável (`ON DELETE SET NULL`) |
+>
+> **Campos críticos e garantias do banco**
+>
+> - `CHECK (metric IN ('level','rain'))` e `CHECK` que amarra a unidade à métrica (`level` só com `m`, `rain` só com `mm/h`): o banco recusa nível e chuva misturados.
+> - `UNIQUE (station_id, metric, observed_at)`: impede a mesma leitura duas vezes (é o que torna o seed repetível e gera o 409 na API).
+> - Índice `idx_obs_series (station_id, metric, observed_at)`: atende as consultas de série, resumo e dashboard.
+> - `PRAGMA foreign_keys = ON` em toda conexão (`src/database/connection.js`); no SQLite as FKs vêm desligadas por padrão.
+
+```mermaid
+erDiagram
+    stations ||--o{ observations : "registra (station_id)"
+    stations ||--o{ station_operators : "tem"
+    operators ||--o{ station_operators : "atua em"
+    operators |o--o{ observations : "responsável (responsible_id)"
+    stations {
+        INTEGER id PK
+        TEXT code UK
+        TEXT name
+        TEXT river
+        TEXT municipality
+        TEXT state
+        REAL latitude
+        REAL longitude
+    }
+    observations {
+        INTEGER id PK
+        INTEGER station_id FK
+        TEXT metric "level | rain"
+        REAL value
+        TEXT unit "m | mm/h"
+        TEXT observed_at "ISO 8601 UTC"
+        INTEGER responsible_id FK "pode ser NULL"
+    }
+    operators {
+        INTEGER id PK
+        TEXT name
+        TEXT email UK
+        TEXT phone
+        TEXT type "tecnico | supervisor | pesquisador"
+    }
+    station_operators {
+        INTEGER station_id PK, FK
+        INTEGER operator_id PK, FK
+        TEXT role
+        TEXT linked_at
+    }
+```
+
+### Dados do seed (`npm run db:seed`)
+
+O seed (`src/database/seed.js`) grava dados **fictícios e determinísticos** (datas fixas, sem depender do relógio), todos dentro de uma única transação:
+
+| Conteúdo | Quantidade | Observação |
+| --- | --- | --- |
+| Estações | 4 | `EST-001` a `EST-003` com leituras; `EST-004` (Estação Dourada) **sem leituras**, para mostrar resumo com `null` e série vazia |
+| Operadores | 4 | Ana (técnica), Bruno (supervisor), Carla (pesquisadora), Diego (técnico) |
+| Vínculos N:N | 7 | cada estação com 1 ou 2 operadores e sua função |
+| Leituras | 425 | 73 horários por métrica (de `2026-11-07T12:00:00Z` a `2026-11-10T12:00:00Z`), menos as lacunas |
+
+**Lacunas de propósito** (horários que simplesmente não existem no banco, para provar que a API não inventa leitura):
+
+- `EST-001`: nível sem `06:00Z` e `07:00Z` do dia 10/11 (aparece na série de 24 h); chuva sem `02:00Z` do dia 10/11.
+- `EST-002`: nível sem `21:00Z` do dia 09/11.
+- `EST-002`: também chuva sem 6 horas seguidas (`06:00Z` a `11:00Z` do dia 09/11, visível na janela de 72 h).
+- `EST-003`: sensor de nível parou às `10:00Z` do dia 10/11, enquanto a chuva vai até `12:00Z` (no resumo, cada métrica tem seu próprio horário); chuva sem `09:00Z` do dia 10/11.
+
+As leituras de nível têm a operadora técnica da estação como responsável; as de chuva vêm de pluviômetro automático e ficam com `responsible_id = NULL`.
+
+**Repetível:** cada `INSERT` usa `ON CONFLICT ... DO NOTHING` sobre uma chave única (`code`, `email`, `(station_id, operator_id)` e `(station_id, metric, observed_at)`). Rodar o seed de novo mostra `inseridos_agora = 0` em todas as tabelas e o total não muda. Para recomeçar do zero: `npm run db:fresh`.
 
 ## Documentação da API
 

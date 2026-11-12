@@ -1,0 +1,33 @@
+graph MER {
+  graph [layout=neato, overlap=false, splines=true, fontname="Helvetica", pad=0.5,
+         label="MER (modelo conceitual) – monitoramento hidrológico · dados simulados", labelloc=t, fontsize=18];
+  node [fontname="Helvetica", fontsize=12];
+  edge [fontname="Helvetica", fontsize=12];
+
+  // Entidades
+  E [label="ESTAÇÃO", shape=box, style="filled,bold", fillcolor="#d6e4f0", pos="0,0!"];
+  L [label="LEITURA", shape=box, style="filled,bold", fillcolor="#d9ead3", pos="6,0!"];
+  O [label="OPERADOR", shape=box, style="filled,bold", fillcolor="#fde9c9", pos="3,-4!"];
+  U [label="USUÁRIO\n(login da API)", shape=box, style="filled,dashed", fillcolor="#eeeeee", pos="7,-4!"];
+
+  // Relacionamentos
+  R1 [label="registra", shape=diamond, style=filled, fillcolor="#ffffff", pos="3,0!"];
+  R2 [label="opera", shape=diamond, style=filled, fillcolor="#ffffff", pos="0.6,-2.4!"];
+  R3 [label="é responsável\npor", shape=diamond, style=filled, fillcolor="#ffffff", pos="5.4,-2.4!"];
+
+  E -- R1 [label="1"];  R1 -- L [label="N"];
+  E -- R2 [label="N"];  R2 -- O [label="N"];
+  O -- R3 [label="0..1"]; R3 -- L [label="N"];
+
+  // Atributos principais
+  node [shape=ellipse, fontsize=10, style=filled, fillcolor="#f7f7f7"];
+  a1 [label=<<u>código</u>>, pos="-2,1.2!"]; a2 [label="nome", pos="-2.4,0!"]; a3 [label="rio", pos="-2,-1.1!"];
+  a4 [label="município / UF", pos="0,1.6!"]; a5 [label="coordenadas", pos="-1.6,2.2!"];
+  E -- a1; E -- a2; E -- a3; E -- a4; E -- a5;
+  b1 [label="métrica (nível | chuva)", pos="8.6,1.2!"]; b2 [label="valor + unidade", pos="8.8,0!"]; b3 [label="horário UTC", pos="8.4,-1.2!"];
+  L -- b1; L -- b2; L -- b3;
+  c1 [label=<<u>e-mail</u>>, pos="1.2,-5.4!"]; c2 [label="nome", pos="3,-5.8!"]; c3 [label="tipo", pos="4.8,-5.4!"];
+  O -- c1; O -- c2; O -- c3;
+  r1 [label="função (role)", pos="-1.6,-3.2!"]; R2 -- r1;
+  n1 [label="(estação + métrica + horário) único", shape=note, fillcolor="#fffbe6", pos="6,1.6!"]; L -- n1 [style=dotted];
+}

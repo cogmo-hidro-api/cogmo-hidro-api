@@ -4,7 +4,7 @@ Objetivo e direto: cada pessoa fala só da própria parte e mostra **uma chamada
 
 ## Antes de começar (5 min antes)
 
-1. `npm run db:reset` (banco limpo com o seed)
+1. `npm run db:fresh` (apaga o banco e recria com o seed: ids voltam a 1–4)
 2. `npm run dev`
 3. Abrir `requests/api.http` no VS Code (extensão REST Client)
 4. Rodar **Cadastrar usuário** e **Login** (o token fica salvo para as rotas protegidas)
@@ -15,7 +15,7 @@ Objetivo e direto: cada pessoa fala só da própria parte e mostra **uma chamada
 | # | Quem | Tempo | O que fala | Chamada do `api.http` |
 | --- | --- | --- | --- | --- |
 | 1 | Márcio (P5) | 1 min | Problema, objetivo e stack (Node.js, Express, SQLite). Frase obrigatória: *"os dados são simulados e não servem para alertas reais"*. | `Health check` |
-| 2 | Daltro (P1) | 2 min | DER: por que cada FK, `UNIQUE` e `CHECK`. Roda o seed 2x e mostra que não duplica. | terminal: `npm run db:seed` duas vezes + contagem |
+| 2 | Daltro (P1) | 2 min | DER: por que cada FK, `UNIQUE` e `CHECK`. Roda o seed 2x e mostra que não duplica. | terminal: `npm run db:seed` duas vezes (a tabela mostra `inseridos_agora` 0 na 2ª vez) + `docs/der.png` |
 | 3 | Laércio (P4) | 1,5 min | Login devolve token; rota protegida sem token dá 401, com token dá 201. | `Login`, `Erro: listar sem token`, `Criar operador` |
 | 4 | Kyara (P2) | 2 min | Lista de estações, resumo e o dashboard cruzando as 3 entidades. | `Listar estações`, `Resumo da estação 1`, `Dashboard da estação 1` |
 | 5 | Márcio (P3) | 2 min | Série de nível e de chuva; `metric=temp` dá 400; `hours=73` dá 400; série com lacuna (hora que não aparece). | `Série de nível, 24 h`, `Série de chuva, 24 h`, `Erro: métrica inválida`, `Erro: hours = 73` |
