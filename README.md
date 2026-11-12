@@ -177,6 +177,32 @@ Status usados: 200, 201, 204, 400 (dado inválido), 401 (sem token), 404 (não e
    npm run dev
    ```
    Acesse `http://localhost:3000/api/health` – a resposta deve ser `{ "ok": true }`.
+6. **Confira as rotas** (em outro terminal, com a API rodando):
+   ```bash
+   npm run test:smoke   # ou: bash scripts/smoke-test.sh
+   ```
+
+### Ubuntu (instalação automática)
+
+No Ubuntu 22.04/24.04 (ou WSL), o script abaixo faz os passos 2 a 4 sozinho: instala `git`, `curl`, `build-essential` e `python3` (necessários para o `better-sqlite3`), instala o Node.js 22 LTS se não houver Node 20+, roda `npm ci`, cria o `.env` com um `JWT_SECRET` aleatório e prepara o banco.
+
+```bash
+git clone https://github.com/cogmo-hidro-api/cogmo-hidro-api.git
+cd cogmo-hidro-api
+bash scripts/setup-ubuntu.sh          # opções: --fresh (recria o banco), --run (já sobe a API), --skip-apt
+```
+
+### Scripts do npm
+
+| Comando | O que faz |
+| --- | --- |
+| `npm run dev` | Sobe a API com recarga automática (nodemon) |
+| `npm start` | Sobe a API sem recarga |
+| `npm run db:migrate` | Cria as tabelas (pode repetir: `CREATE TABLE IF NOT EXISTS`) |
+| `npm run db:seed` | Insere os dados fictícios (pode repetir sem duplicar) |
+| `npm run db:reset` | `db:migrate` + `db:seed` |
+| `npm run db:fresh` | Apaga o arquivo do banco e roda `db:reset` (banco limpo para a demo) |
+| `npm run test:smoke` | Testa as rotas principais com `curl` (precisa da API rodando) |
 
 ## Decisões Técnicas
 

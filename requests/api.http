@@ -54,6 +54,15 @@ GET {{base}}/stations
 ### Resumo da estação 1 (última leitura de nível e de chuva) → 200
 GET {{base}}/stations/1/summary
 
+### Resumo da estação 3: nível e chuva com horários diferentes → 200
+GET {{base}}/stations/3/summary
+
+### Resumo da estação 4 (sem leituras): valores e horários null → 200
+GET {{base}}/stations/4/summary
+
+### Série de estação sem leituras → 200 com points: []
+GET {{base}}/stations/4/series?metric=level
+
 ### Série de nível, 24 h → 200 (unit: m)
 GET {{base}}/stations/1/series?metric=level&hours=24
 
@@ -98,7 +107,7 @@ GET {{base}}/stations/999/summary
 ### Buscar estação 1 → 200
 GET {{base}}/stations/1
 
-### Criar estação → 201
+### Criar estação → 201 (num banco recém-criado com npm run db:fresh ela recebe o id 5)
 POST {{base}}/stations
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -138,8 +147,78 @@ Content-Type: application/json
   "state": "DF"
 }
 
+### Erro: campos obrigatórios faltando → 400 INVALID_INPUT
+POST {{base}}/stations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "EST-902"
+}
+
+### Erro: UF com mais de 2 letras → 400 INVALID_STATE
+POST {{base}}/stations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "EST-902",
+  "name": "UF errada",
+  "river": "Rio",
+  "municipality": "Cidade",
+  "state": "Distrito Federal"
+}
+
+### Erro: latitude fora de -90..90 → 400 INVALID_COORDINATES
+POST {{base}}/stations
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "EST-902",
+  "name": "Coordenada errada",
+  "river": "Rio",
+  "municipality": "Cidade",
+  "state": "DF",
+  "latitude": 120
+}
+
+### Editar só o nome da estação 5 (criada acima) → 200
+PUT {{base}}/stations/5
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Estação Teste (editada)"
+}
+
+### Erro: editar para um code que já existe → 409 STATION_CODE_EXISTS
+PUT {{base}}/stations/5
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "EST-001"
+}
+
+### Remover a estação 5 → 204 (leituras e vínculos dela saem junto)
+DELETE {{base}}/stations/5
+Authorization: Bearer {{token}}
+
+### Erro: buscar estação inexistente → 404 STATION_NOT_FOUND
+GET {{base}}/stations/999
+
+### Erro: id inválido → 400 INVALID_ID
+GET {{base}}/stations/abc
+
 ### Dashboard da estação 1 (estação + leituras 24 h com responsável + operadores) → 200
 GET {{base}}/stations/1/dashboard
+
+### Dashboard da estação 4 (sem leituras: observations [] e operadores) → 200
+GET {{base}}/stations/4/dashboard
+
+### Erro: dashboard de estação inexistente → 404
+GET {{base}}/stations/999/dashboard
 
 
 ############################################################
