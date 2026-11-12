@@ -1,11 +1,13 @@
 const operatorRepository = require('../repositories/operatorRepository');
+const { parseId } = require('../utils/validators');
+const VALID_TYPES = ['tecnico', 'supervisor', 'pesquisador'];
 const AppError = require('../utils/AppError');
 const operatorService = {
 getAll() {
 return operatorRepository.findAll();
 },
-getById(id) {
-const operator = operatorRepository.findById(id);
+getById(rawId) {
+const id = parseId(rawId);
 if (!operator) {
 throw new AppError(404, 'OPERATOR_NOT_FOUND', 'Operador não encontrado');
 }
@@ -28,19 +30,30 @@ if (operatorRepository.findByEmail(email)) {
 
 return operatorRepository.create({ name, email, phone, type });
  },
-update(id, data) {
-this.getById(id); // Garante que o operador existe (se não existir, lança erro 404)
-return operatorRepository.update(id, data);
-},
-delete(id) {
-this.getById(id); // Garante que existe
-operatorRepository.delete(id);
+update(rawId, data) {
+const current = this.getById(rawId); // 404 se não existir
+// junta o que já existe com o que veio no body (dá pra mandar só 1 campo)
+const merged = { ...current, ...data };
+if (!VALID_TYPES.includes(merged.type)) {
+  throw new AppError(400, 'INVALID_TYPE', 'Tipo deve ser: tecnico, supervisor ou pesquisador');
+}
+const other = operatorRepository.findByEmail(merged.email);
+if (other && other.id !== current.id) {
+  throw new AppError(409, 'EMAIL_IN_USE', 'E-mail já cadastrado para outro operador');
+}
+return operatorRepository.update(current.id, merged);
 },
 // Regras N:N (Estação <-> Operador)
 getOperatorsByStation(stationId) {
 return operatorRepository.findOperatorsByStation(stationId);
 },
-linkStation(stationId, operatorId, role) {
+linkStation(rawStationId, rawOperatorId, role) {
+const stationId = parseId(rawStationId, 'id da estação');
+const operatorId = parseId(rawOperatorId, 'operator_id');
+if (!operatorRepository.stationExists(stationId)) {
+  throw new AppError(404, 'STATION_NOT_FOUND', 'Estação não encontrada');
+}
+this.getById(operatorId); // 404 se o operador não existir
 try {
 return operatorRepository.linkStation(stationId, operatorId, role);
 } catch (err) {
