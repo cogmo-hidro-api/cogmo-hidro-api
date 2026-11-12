@@ -1,3 +1,4 @@
+require('dotenv').config(); // mesmo DB_PATH do servidor
 const fs = require('fs');
 const path = require('path');
 const db = require('./connection');

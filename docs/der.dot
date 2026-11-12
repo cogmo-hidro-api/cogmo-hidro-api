@@ -1,0 +1,71 @@
+digraph DER {
+  graph [rankdir=LR, fontname="Helvetica", bgcolor="white", pad=0.4, nodesep=0.6, ranksep=1.2,
+         label="DER – cogmo-hidro-api (SQLite) · dados simulados", labelloc=t, fontsize=18];
+  node  [shape=plaintext, fontname="Helvetica", fontsize=11];
+  edge  [fontname="Helvetica", fontsize=10, color="#555555"];
+
+  stations [label=<
+  <table border="0" cellborder="1" cellspacing="0" cellpadding="5">
+    <tr><td bgcolor="#1f4e79" colspan="2"><font color="white"><b>stations</b></font></td></tr>
+    <tr><td align="left"><b>🔑 id</b></td><td port="id" align="left">INTEGER PK AUTOINCREMENT</td></tr>
+    <tr><td align="left">code</td><td align="left">TEXT NOT NULL UNIQUE</td></tr>
+    <tr><td align="left">name</td><td align="left">TEXT NOT NULL</td></tr>
+    <tr><td align="left">river</td><td align="left">TEXT NOT NULL</td></tr>
+    <tr><td align="left">municipality</td><td align="left">TEXT NOT NULL</td></tr>
+    <tr><td align="left">state</td><td align="left">TEXT NOT NULL</td></tr>
+    <tr><td align="left">latitude</td><td align="left">REAL</td></tr>
+    <tr><td align="left">longitude</td><td align="left">REAL</td></tr>
+    <tr><td align="left">created_at</td><td align="left">TEXT (UTC ISO 8601)</td></tr>
+  </table>>];
+
+  observations [label=<
+  <table border="0" cellborder="1" cellspacing="0" cellpadding="5">
+    <tr><td bgcolor="#2e7d32" colspan="2"><font color="white"><b>observations</b></font></td></tr>
+    <tr><td align="left"><b>🔑 id</b></td><td align="left">INTEGER PK AUTOINCREMENT</td></tr>
+    <tr><td port="sid" align="left">🔗 station_id</td><td align="left">INTEGER NOT NULL FK → stations.id<br/>ON DELETE CASCADE</td></tr>
+    <tr><td align="left">metric</td><td align="left">TEXT CHECK IN ('level','rain')</td></tr>
+    <tr><td align="left">value</td><td align="left">REAL NOT NULL</td></tr>
+    <tr><td align="left">unit</td><td align="left">TEXT · CHECK level→'m', rain→'mm/h'</td></tr>
+    <tr><td align="left">observed_at</td><td align="left">TEXT NOT NULL (UTC ISO 8601)</td></tr>
+    <tr><td port="rid" align="left">🔗 responsible_id</td><td align="left">INTEGER NULL FK → operators.id<br/>ON DELETE SET NULL</td></tr>
+    <tr><td bgcolor="#eeeeee" colspan="2" align="left">UNIQUE (station_id, metric, observed_at)<br/>INDEX idx_obs_series (station_id, metric, observed_at)</td></tr>
+  </table>>];
+
+  operators [label=<
+  <table border="0" cellborder="1" cellspacing="0" cellpadding="5">
+    <tr><td bgcolor="#8e5b00" colspan="2"><font color="white"><b>operators</b></font></td></tr>
+    <tr><td align="left"><b>🔑 id</b></td><td port="id" align="left">INTEGER PK AUTOINCREMENT</td></tr>
+    <tr><td align="left">name</td><td align="left">TEXT NOT NULL</td></tr>
+    <tr><td align="left">email</td><td align="left">TEXT NOT NULL UNIQUE</td></tr>
+    <tr><td align="left">phone</td><td align="left">TEXT</td></tr>
+    <tr><td align="left">type</td><td align="left">TEXT CHECK IN ('tecnico','supervisor','pesquisador')</td></tr>
+  </table>>];
+
+  station_operators [label=<
+  <table border="0" cellborder="1" cellspacing="0" cellpadding="5">
+    <tr><td bgcolor="#6a1b9a" colspan="2"><font color="white"><b>station_operators</b> (associativa N:N)</font></td></tr>
+    <tr><td port="sid" align="left">🔑🔗 station_id</td><td align="left">INTEGER FK → stations.id · CASCADE</td></tr>
+    <tr><td port="oid" align="left">🔑🔗 operator_id</td><td align="left">INTEGER FK → operators.id · CASCADE</td></tr>
+    <tr><td align="left">role</td><td align="left">TEXT</td></tr>
+    <tr><td align="left">linked_at</td><td align="left">TEXT (UTC ISO 8601)</td></tr>
+    <tr><td bgcolor="#eeeeee" colspan="2" align="left">PRIMARY KEY (station_id, operator_id)</td></tr>
+  </table>>];
+
+  users [label=<
+  <table border="0" cellborder="1" cellspacing="0" cellpadding="5">
+    <tr><td bgcolor="#555555" colspan="2"><font color="white"><b>users</b> (só login, sem relação)</font></td></tr>
+    <tr><td align="left"><b>🔑 id</b></td><td align="left">INTEGER PK AUTOINCREMENT</td></tr>
+    <tr><td align="left">name</td><td align="left">TEXT NOT NULL</td></tr>
+    <tr><td align="left">email</td><td align="left">TEXT NOT NULL UNIQUE</td></tr>
+    <tr><td align="left">password_hash</td><td align="left">TEXT NOT NULL (bcrypt)</td></tr>
+    <tr><td align="left">created_at</td><td align="left">TEXT (UTC ISO 8601)</td></tr>
+  </table>>];
+
+  stations:id:e -> observations:sid:w [label="1 : N  (registra)", arrowhead=crow, arrowtail=tee, dir=both];
+  stations:id:e -> station_operators:sid:w [label="1 : N", arrowhead=crow, arrowtail=tee, dir=both];
+  operators:id:e -> station_operators:oid:w [label="1 : N", arrowhead=crow, arrowtail=tee, dir=both];
+  operators:id:e -> observations:rid:w [label="0..1 : N  (responsável)", arrowhead=crow, arrowtail=odottee, dir=both, style=dashed];
+
+  {rank=same; stations; operators}
+  {rank=same; observations; station_operators}
+}

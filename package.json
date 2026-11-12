@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "db:migrate": "node src/database/migrate.js",
     "db:seed": "node src/database/seed.js",
-    "db:reset": "npm run db:migrate && npm run db:seed"
+    "db:reset": "npm run db:migrate && npm run db:seed",
+    "db:fresh": "node src/database/fresh.js && npm run db:reset"
   },
   "repository": {
     "type": "git",
