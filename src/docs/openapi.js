@@ -75,12 +75,20 @@ const schemas = {
       longitude: { type: 'number', nullable: true, example: -47.88 },
     },
   },
+  StationListItem: {
+    allOf: [ref('Station'), {
+      type: 'object',
+      properties: {
+        updated_at: { type: 'string', format: 'date-time', nullable: true, description: 'Horário da leitura mais recente da estação (null se não tiver leitura)', example: '2026-11-10T12:00:00Z' },
+      },
+    }],
+  },
   StationInput: {
     type: 'object',
     required: ['code', 'name', 'river', 'municipality', 'state'],
     properties: {
       code: { type: 'string' }, name: { type: 'string' }, river: { type: 'string' },
-      municipality: { type: 'string' }, state: { type: 'string' },
+      municipality: { type: 'string' }, state: { type: 'string', description: 'Sigla da UF com 2 letras (é convertida para maiúscula)', example: 'DF' },
       latitude: { type: 'number' }, longitude: { type: 'number' },
     },
   },
@@ -221,7 +229,11 @@ const paths = {
 
   // ---------- Contrato Cogmo + Estações ----------
   '/stations': {
-    get: { tags: ['Contrato Cogmo'], summary: 'Lista as estações', responses: { 200: resp('Lista de estações', list(ref('Station'))) } },
+    get: {
+      tags: ['Contrato Cogmo'],
+      summary: 'Lista as estações (ordem alfabética pelo nome)',
+      responses: { 200: resp('Lista de estações', list(ref('StationListItem'))) },
+    },
     post: {
       tags: ['Estações'],
       summary: 'Cria estação',
@@ -229,9 +241,10 @@ const paths = {
       requestBody: body(ref('StationInput'), { code: 'EST-900', name: 'Estação Teste', river: 'Rio Fictício', municipality: 'Cidade Fictícia', state: 'DF', latitude: -15.79, longitude: -47.88 }),
       responses: {
         201: resp('Estação criada', obj(ref('Station'))),
-        400: err('INVALID_INPUT', 'Campos obrigatórios: code, name, river, municipality, state', 'Campo faltando'),
+        400: err('INVALID_INPUT', 'Campos obrigatórios ausentes ou vazios: code, name, river, municipality, state',
+          'Campo faltando (INVALID_INPUT), UF diferente de 2 letras (INVALID_STATE) ou coordenada fora do limite (INVALID_COORDINATES)'),
         401: E401,
-        409: err('STATION_CODE_EXISTS', 'Já existe estação com esse code', 'code repetido'),
+        409: err('STATION_CODE_EXISTS', 'Já existe estação com o código EST-900', 'code repetido'),
       },
     },
   },
@@ -240,10 +253,16 @@ const paths = {
     get: { tags: ['Estações'], summary: 'Busca uma estação', responses: { 200: resp('Estação', obj(ref('Station'))), 400: E400ID, 404: E404ST } },
     put: {
       tags: ['Estações'],
-      summary: 'Edita estação',
+      summary: 'Edita estação (parcial: o que não vier no corpo continua igual)',
       security: SEC,
-      requestBody: body(ref('StationInput'), { name: 'Estação Teste (editada)' }),
-      responses: { 200: resp('Estação atualizada', obj(ref('Station'))), 400: E400ID, 401: E401, 404: E404ST },
+      requestBody: body({ type: 'object', properties: schemas.StationInput.properties }, { name: 'Estação Teste (editada)' }),
+      responses: {
+        200: resp('Estação atualizada', obj(ref('Station'))),
+        400: err('INVALID_INPUT', 'Envie ao menos um campo para editar', 'Corpo vazio, id inválido ou campo inválido (INVALID_INPUT, INVALID_ID, INVALID_STATE, INVALID_COORDINATES)'),
+        401: E401,
+        404: E404ST,
+        409: err('STATION_CODE_EXISTS', 'Já existe estação com o código EST-001', 'code já usado por outra estação'),
+      },
     },
     delete: {
       tags: ['Estações'],
@@ -262,7 +281,19 @@ const paths = {
           type: 'object',
           properties: {
             station: ref('Station'),
-            latest: { type: 'object', properties: { level: ref('LatestReading'), rain: ref('LatestReading') } },
+            latest: {
+              type: 'object',
+              description: 'Cada métrica tem o próprio horário. Sem leitura → null. '
+                + 'Os campos planos (level_m, rain_mm_h...) seguem o contrato da Cogmo.',
+              properties: {
+                level: ref('LatestReading'),
+                rain: ref('LatestReading'),
+                level_observed_at: { type: 'string', format: 'date-time', nullable: true, example: '2026-11-10T12:00:00Z' },
+                level_m: { type: 'number', nullable: true, example: 1.35 },
+                rain_observed_at: { type: 'string', format: 'date-time', nullable: true, example: '2026-11-10T12:00:00Z' },
+                rain_mm_h: { type: 'number', nullable: true, example: 0.2 },
+              },
+            },
           },
         })),
         400: E400ID,
@@ -294,20 +325,30 @@ const paths = {
     get: {
       tags: ['Relacionamentos'],
       summary: 'Rota composta: estação + leituras das últimas 24 h com responsável + operadores vinculados',
-      description: 'Cruza as 3 entidades numa resposta só. Operadores aparecem só com nome, tipo e função (sem contato).',
+      description: 'Cruza as 3 entidades numa resposta só. A janela de 24 h termina na última leitura da estação '
+        + '(mesma regra da série). Operadores e responsáveis aparecem só com id, nome, tipo (e função), sem contato.',
       parameters: [stationId],
       responses: {
         200: resp('Dashboard', obj({
           type: 'object',
           properties: {
             station: ref('Station'),
+            window: {
+              type: 'object',
+              properties: {
+                hours: { type: 'integer', example: 24 },
+                from: { type: 'string', format: 'date-time', nullable: true, example: '2026-11-09T12:00:00Z' },
+                to: { type: 'string', format: 'date-time', nullable: true, example: '2026-11-10T12:00:00Z' },
+              },
+            },
+            latest: { type: 'object', properties: { level: ref('LatestReading'), rain: ref('LatestReading') } },
             observations: {
               type: 'array',
               items: { allOf: [ref('Observation'), { type: 'object', properties: { responsible: ref('ResponsiblePublic') } }] },
             },
             operators: {
               type: 'array',
-              items: { type: 'object', properties: { name: { type: 'string' }, type: { type: 'string' }, role: { type: 'string', nullable: true } } },
+              items: { type: 'object', properties: { id: { type: 'integer' }, name: { type: 'string' }, type: { type: 'string' }, role: { type: 'string', nullable: true } } },
             },
           },
         })),

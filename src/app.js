@@ -3,6 +3,7 @@ const cors = require('cors');
 const stationOperatorRoutes = require('./routes/stationOperatorRoutes');
 const seriesRoutes = require('./routes/seriesRoutes');
 const observationRoutes = require('./routes/observationRoutes');
+const stationRoutes = require('./routes/stationRoutes');
 const stationObservationRoutes = require('./routes/stationObservationRoutes');
 const simulatedNotice = require('./middlewares/simulatedNotice');
 const swaggerUi = require('swagger-ui-express');
@@ -37,6 +38,9 @@ app.use('/api/stations/:id/operators', stationOperatorRoutes);
 app.use('/api/stations/:id/series', seriesRoutes);
 app.use('/api/stations/:id/observations', stationObservationRoutes);
 app.use('/api/observations', observationRoutes);
+// Estações (lista, CRUD, /summary e /dashboard). Fica depois das sub-rotas
+// /api/stations/:id/... acima; o que não casar aqui segue para o notFound.
+app.use('/api/stations', stationRoutes);
 
 // Tratamento de erros: SEMPRE por último
 app.use(notFound);
