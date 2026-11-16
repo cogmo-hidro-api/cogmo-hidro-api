@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitoramento Hidrológico – Cogmo</title>
+  <style>
+    :root {
+      --bg: #f4f7f9;
+      --panel: #ffffff;
+      --ink: #14262f;
+      --muted: #5c707b;
+      --line: #dbe4e9;
+      --water: #0b6e99;
+      --water-soft: #e3f1f8;
+      --rain: #3d7a4a;
+      --rain-soft: #e6f2e8;
+      --warn-bg: #fff4d6;
+      --warn-ink: #6b4b00;
+      --error: #a12a2a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    .notice {
+      background: var(--warn-bg);
+      color: var(--warn-ink);
+      padding: 10px 16px;
+      font-size: 14px;
+      text-align: center;
+      border-bottom: 1px solid #f0dfa8;
+    }
+    header {
+      padding: 20px 24px 8px;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    header h1 { margin: 0; font-size: 22px; }
+    header span { color: var(--muted); font-size: 14px; }
+    main {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      padding: 12px 24px 32px;
+      max-width: 1200px;
+    }
+    @media (max-width: 800px) {
+      main { grid-template-columns: 1fr; padding: 12px 16px 24px; }
+      header { padding: 16px 16px 4px; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+    .stations { list-style: none; margin: 0; padding: 0; }
+    .stations button {
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font: inherit;
+      color: inherit;
+    }
+    .stations button:hover { background: var(--bg); }
+    .stations button.active { background: var(--water-soft); border-color: #b9dcec; }
+    .stations strong { display: block; font-size: 15px; }
+    .stations small { color: var(--muted); }
+    .content { display: grid; gap: 20px; align-content: start; }
+    .title-row h3 { margin: 0; font-size: 20px; }
+    .title-row p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .card { border-radius: 10px; padding: 14px 16px; }
+    .card.level { background: var(--water-soft); }
+    .card.rain { background: var(--rain-soft); }
+    .card .label { font-size: 13px; color: var(--muted); }
+    .card .value { font-size: 30px; font-weight: 650; margin: 4px 0; }
+    .card .value small { font-size: 15px; font-weight: 500; color: var(--muted); }
+    .card .when { font-size: 12px; color: var(--muted); }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .seg button {
+      border: 0;
+      background: var(--panel);
+      padding: 7px 12px;
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .seg button + button { border-left: 1px solid var(--line); }
+    .seg button.on { background: var(--ink); color: #fff; }
+    .chart { width: 100%; height: auto; display: block; }
+    .chart-info { font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+    .ops { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    .ops li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+    .ops li:last-child { border-bottom: 0; padding-bottom: 0; }
+    .ops span { color: var(--muted); }
+    .error { color: var(--error); font-size: 14px; }
+    footer { padding: 0 24px 24px; color: var(--muted); font-size: 12px; }
+    footer a { color: var(--water); }
+  </style>
+</head>
+<body>
+  <div class="notice" id="notice">⚠️ Dados simulados para fins didáticos. Não descrevem rios reais e não servem para alertas.</div>
+
+  <header>
+    <h1>Monitoramento Hidrológico</h1>
+    <span>Nível do rio (m) e chuva (mm/h) · horários em UTC</span>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Estações</h2>
+      <ul class="stations" id="stations"><li class="empty">Carregando…</li></ul>
+    </section>
+
+    <section class="content" id="content">
+      <div class="panel empty">Escolha uma estação.</div>
+    </section>
+  </main>
+
+  <footer>
+    Front básico consumindo a própria API. Documentação completa em <a href="/api/docs">/api/docs</a>.
+  </footer>
+
+  <script>
+    const API = '/api';
+    const state = { stationId: null, metric: 'level', hours: 24 };
+    const UNIT = { level: 'm', rain: 'mm/h' };
+    const COLOR = { level: '#0b6e99', rain: '#3d7a4a' };
+
+    // Busca JSON da API; erro da API vira exceção com a mensagem dela
+    async function get(path) {
+      const res = await fetch(API + path);
+      const body = await res.json();
+      if (body.notice) document.getElementById('notice').textContent = '⚠️ ' + body.notice;
+      if (!res.ok) throw new Error(body.error ? body.error.message : 'Erro ' + res.status);
+      return body;
+    }
+
+    // Texto vindo da API entra sempre como texto, nunca como HTML
+    function el(tag, attrs = {}, ...children) {
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === 'class') node.className = v;
+        else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
+        else node.setAttribute(k, v);
+      }
+      for (const c of children) node.append(c instanceof Node ? c : String(c));
+      return node;
+    }
+
+    // 2026-11-10T12:00:00Z → 10/11 12:00 UTC
+    function fmt(iso) {
+      if (!iso) return '—';
+      const [d, t] = iso.split('T');
+      const [, m, day] = d.split('-');
+      return `${day}/${m} ${t.slice(0, 5)} UTC`;
+    }
+
+    async function loadStations() {
+      const list = document.getElementById('stations');
+      try {
+        const { data } = await get('/stations');
+        list.replaceChildren(...data.map((s) =>
+          el('li', {}, el('button', { 'data-id': s.id, onclick: () => selectStation(s.id) },
+            el('strong', {}, s.name),
+            el('small', {}, `${s.river} · ${s.municipality}/${s.state}`),
+            el('br'),
+            el('small', {}, s.updated_at ? 'Última leitura ' + fmt(s.updated_at) : 'Sem leituras'),
+          ))));
+        if (data.length) selectStation(data[0].id);
+      } catch (e) {
+        list.replaceChildren(el('li', { class: 'error' }, 'Não foi possível carregar: ' + e.message));
+      }
+    }
+
+    async function selectStation(id) {
+      state.stationId = id;
+      document.querySelectorAll('.stations button').forEach((b) => b.classList.toggle('active', Number(b.dataset.id) === id));
+      const content = document.getElementById('content');
+      try {
+        const [summary, dash] = await Promise.all([get(`/stations/${id}/summary`), get(`/stations/${id}/dashboard`)]);
+        const s = summary.station;
+        content.replaceChildren(
+          el('div', { class: 'panel' },
+            el('div', { class: 'title-row' },
+              el('h3', {}, s.name),
+              el('p', {}, `${s.code} · ${s.river} · ${s.municipality}/${s.state}`)),
+          ),
+          el('div', { class: 'cards' },
+            card('level', 'Nível do rio', summary.latest.level),
+            card('rain', 'Chuva', summary.latest.rain)),
+          el('div', { class: 'panel' },
+            el('h2', {}, 'Série'),
+            el('div', { class: 'controls' },
+              seg(['level', 'rain'], state.metric, (v) => { state.metric = v; drawSeries(); }, { level: 'Nível', rain: 'Chuva' }),
+              seg([24, 48, 72], state.hours, (v) => { state.hours = v; drawSeries(); }, { 24: '24 h', 48: '48 h', 72: '72 h' })),
+            el('div', { id: 'chart' })),
+          el('div', { class: 'panel' },
+            el('h2', {}, 'Operadores da estação'),
+            dash.operators.length
+              ? el('ul', { class: 'ops' }, ...dash.operators.map((o) => el('li', {}, el('strong', {}, o.name), el('span', {}, `${o.type}${o.role ? ' · ' + o.role : ''}`))))
+              : el('p', { class: 'empty' }, 'Nenhum operador vinculado.')),
+        );
+        drawSeries();
+      } catch (e) {
+        content.replaceChildren(el('div', { class: 'panel error' }, e.message));
+      }
+    }
+
+    function card(metric, label, reading) {
+      return el('div', { class: `card ${metric}` },
+        el('div', { class: 'label' }, label),
+        reading
+          ? el('div', { class: 'value' }, String(reading.value).replace('.', ','), ' ', el('small', {}, reading.unit))
+          : el('div', { class: 'value' }, el('small', {}, 'sem leitura')),
+        el('div', { class: 'when' }, reading ? fmt(reading.observed_at) : ''));
+    }
+
+    function seg(options, current, onPick, labels) {
+      const wrap = el('div', { class: 'seg' });
+      for (const opt of options) {
+        wrap.append(el('button', {
+          class: opt === current ? 'on' : '',
+          onclick: (ev) => { wrap.querySelectorAll('button').forEach((b) => b.classList.remove('on')); ev.currentTarget.classList.add('on'); onPick(opt); },
+        }, labels[opt]));
+      }
+      return wrap;
+    }
+
+    async function drawSeries() {
+      const box = document.getElementById('chart');
+      if (!box) return;
+      const { metric, hours, stationId } = state;
+      try {
+        const s = await get(`/stations/${stationId}/series?metric=${metric}&hours=${hours}`);
+        if (stationId !== state.stationId || metric !== state.metric || hours !== state.hours) return;
+        if (!s.count) {
+          box.replaceChildren(el('p', { class: 'empty' }, 'Sem leituras nesta janela.'));
+          return;
+        }
+        box.replaceChildren(chart(s), el('div', { class: 'chart-info' },
+          `${s.count} leituras de ${fmt(s.from)} a ${fmt(s.to)} · horas sem leitura aparecem como intervalo na linha (não são inventadas)`));
+      } catch (e) {
+        box.replaceChildren(el('p', { class: 'error' }, e.message));
+      }
+    }
+
+    // Gráfico SVG simples: a linha é interrompida onde falta leitura (lacuna > 1 h)
+    function chart(s) {
+      const W = 760, H = 260, L = 52, R = 12, T = 26, B = 30;
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svg.setAttribute('class', 'chart');
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', `Série de ${s.metric} em ${s.unit}`);
+      const add = (tag, attrs, text) => {
+        const n = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+        if (text !== undefined) n.textContent = text;
+        svg.append(n);
+        return n;
+      };
+
+      const t0 = Date.parse(s.from), t1 = Date.parse(s.to);
+      const vals = s.points.map((p) => p.value);
+      let lo = Math.min(...vals), hi = Math.max(...vals);
+      if (s.metric === 'rain') lo = 0;
+      if (hi === lo) { hi += 1; lo = Math.max(0, lo - 1); }
+      const pad = (hi - lo) * 0.1;
+      hi += pad; if (s.metric !== 'rain') lo -= pad;
+      const x = (iso) => L + ((Date.parse(iso) - t0) / (t1 - t0)) * (W - L - R);
+      const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+
+      // grade e eixo Y
+      for (let i = 0; i <= 4; i += 1) {
+        const v = lo + ((hi - lo) * i) / 4;
+        add('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: '#e6edf1' });
+        add('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#5c707b' }, v.toFixed(2).replace('.', ','));
+      }
+      add('text', { x: L - 6, y: 12, 'text-anchor': 'end', 'font-size': 11, 'font-weight': 600, fill: '#5c707b' }, s.unit);
+      // eixo X (início e fim da janela)
+      add('text', { x: L, y: H - 8, 'font-size': 11, fill: '#5c707b' }, fmt(s.from));
+      add('text', { x: W - R, y: H - 8, 'text-anchor': 'end', 'font-size': 11, fill: '#5c707b' }, fmt(s.to));
+
+      // linha em segmentos: quebra quando passa mais de 1 h entre leituras
+      let seg = [];
+      const flush = () => {
+        if (seg.length > 1) add('polyline', { points: seg.join(' '), fill: 'none', stroke: COLOR[s.metric], 'stroke-width': 2 });
+        seg = [];
+      };
+      s.points.forEach((p, i) => {
+        if (i > 0 && Date.parse(p.observed_at) - Date.parse(s.points[i - 1].observed_at) > 3600 * 1000) flush();
+        seg.push(`${x(p.observed_at).toFixed(1)},${y(p.value).toFixed(1)}`);
+      });
+      flush();
+      for (const p of s.points) {
+        const c = add('circle', { cx: x(p.observed_at), cy: y(p.value), r: 2.5, fill: COLOR[s.metric] });
+        const tip = document.createElementNS(ns, 'title');
+        tip.textContent = `${fmt(p.observed_at)}: ${p.value} ${s.unit}`;
+        c.append(tip);
+      }
+      return svg;
+    }
+
+    loadStations();
+  </script>
+</body>
+</html>
