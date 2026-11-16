@@ -30,6 +30,7 @@ Prof. Tiago Segato
 - [Diagrama de Banco de Dados](#diagrama-de-banco-de-dados)
 - [Documentação da API](#documentação-da-api)
 - [Configuração do Ambiente](#configuração-do-ambiente)
+- [Front básico](#front-básico)
 - [Decisões Técnicas](#decisões-técnicas)
 - [Deploy](#deploy-opcional)
 
@@ -71,8 +72,11 @@ cogmo-hidro-api/
 │   ├── mer.png               # Modelo conceitual
 │   ├── roteiro-demo.md       # Roteiro da apresentação
 │   └── diario/               # Diário de trabalho por sprint
+├── public/
+│   └── index.html            # Front básico (http://localhost:3000)
 ├── requests/
 │   └── api.http              # Chamadas de teste prontas
+├── scripts/                  # Teste automático (smoke test) e instalação no Ubuntu
 └── src/
     ├── server.js             # Sobe o servidor
     ├── app.js                # Configura Express, middlewares e rotas
@@ -261,6 +265,7 @@ Status usados: 200, 201, 204, 400 (dado inválido), 401 (sem token), 404 (não e
    npm run dev
    ```
    Acesse `http://localhost:3000/api/health` – a resposta deve ser `{ "ok": true }`.
+   Abra **`http://localhost:3000`** para ver o front básico (estações, último nível e chuva, gráfico da série) e **`http://localhost:3000/api/docs`** para o Swagger.
 6. **Confira as rotas** (em outro terminal, com a API rodando):
    ```bash
    npm run test:smoke   # ou: bash scripts/smoke-test.sh
@@ -287,6 +292,16 @@ bash scripts/setup-ubuntu.sh          # opções: --fresh (recria o banco), --ru
 | `npm run db:reset` | `db:migrate` + `db:seed` |
 | `npm run db:fresh` | Apaga o arquivo do banco e roda `db:reset` (banco limpo para a demo) |
 | `npm run test:smoke` | Testa as rotas principais com `curl` (precisa da API rodando) |
+
+## Front básico
+
+Uma página só, em `public/index.html`, servida pelo próprio Express em `http://localhost:3000` (HTML, CSS e JavaScript puro, sem build e sem biblioteca externa). Ela consome a API:
+
+- lista as estações (`GET /api/stations`) com o horário da última leitura;
+- mostra o último nível (m) e a última chuva (mm/h) com horário UTC (`/summary`); sem leitura aparece "sem leitura";
+- desenha a série de nível ou chuva em 24, 48 ou 72 h (`/series`); **a linha é interrompida onde falta leitura**, então as lacunas ficam visíveis e não são inventadas;
+- lista os operadores da estação (`/dashboard`), sem dados de contato;
+- mantém o aviso de dados simulados no topo, lido da própria resposta da API.
 
 ## Decisões Técnicas
 
