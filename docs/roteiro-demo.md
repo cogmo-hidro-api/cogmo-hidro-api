@@ -8,7 +8,8 @@ Objetivo e direto: cada pessoa fala só da própria parte e mostra **uma chamada
 2. `npm run dev`
 3. Abrir `requests/api.http` no VS Code (extensão REST Client)
 4. Rodar **Cadastrar usuário** e **Login** (o token fica salvo para as rotas protegidas)
-5. Deixar abertos: `docs/der.png`, o Swagger (`localhost:3000/api/docs`), o GitHub (aba Pull requests) e o Trello
+5. Deixar abertos: `docs/der.png`, o front (`localhost:3000`), o Swagger (`localhost:3000/api/docs`), o GitHub (aba Pull requests) e o Trello
+6. Opcional: `npm run test:smoke` num segundo terminal (tem que dar 30 OK)
 
 ## Ordem
 
@@ -19,7 +20,7 @@ Objetivo e direto: cada pessoa fala só da própria parte e mostra **uma chamada
 | 3 | Laércio (P4) | 1,5 min | Login devolve token; rota protegida sem token dá 401, com token dá 201. | `Login`, `Erro: listar sem token`, `Criar operador` |
 | 4 | Kyara (P2) | 2 min | Lista de estações, resumo e o dashboard cruzando as 3 entidades. | `Listar estações`, `Resumo da estação 1`, `Dashboard da estação 1` |
 | 5 | Márcio (P3) | 2 min | Série de nível e de chuva; `metric=temp` dá 400; `hours=73` dá 400; série com lacuna (hora que não aparece). | `Série de nível, 24 h`, `Série de chuva, 24 h`, `Erro: métrica inválida`, `Erro: hours = 73` |
-| 6 | Márcio (P5) | 1,5 min | Organização: Trello, PRs revisados no GitHub, diário, Swagger. O que fariam depois. | navegador |
+| 6 | Márcio (P5) | 1,5 min | Front básico em `localhost:3000`: escolhe uma estação, mostra o gráfico com a lacuna e a estação sem leituras. Depois: Trello, PRs revisados, diário e Swagger. O que fariam depois. | navegador |
 
 ## Perguntas que a Cogmo avisa que vai fazer
 
