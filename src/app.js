@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const stationOperatorRoutes = require('./routes/stationOperatorRoutes');
@@ -18,6 +19,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Front básico (página única em public/index.html) servido em http://localhost:3000
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Rota de verificação: confirma que a API está no ar
 app.get('/api/health', (req, res) => {
