@@ -39,6 +39,25 @@ check "erro: estação inexistente (summary)"      404 GET  /stations/999/summar
 check "erro: métrica inválida"                   400 GET  "/stations/1/series?metric=vento&hours=24" "" "" INVALID_METRIC
 check "erro: hours=100"                          400 GET  "/stations/1/series?metric=level&hours=100" "" "" INVALID_HOURS
 
+echo "-- Contrato Cogmo: formato original (docs/CONTRATO_API.md e harness/check.ps1 do desafio)"
+check "health com status ok"                     200 GET  /health "" "" '"status":"ok"'
+check "health informa o banco"                   200 GET  /health "" "" '"database":"ok"'
+check "lista: data_mode simulation"              200 GET  /stations "" "" '"data_mode":"simulation"'
+check "lista: chave stations"                    200 GET  /stations "" "" '"stations":\[{"id":1'
+check "lista: updated_at da última leitura"      200 GET  /stations "" "" '"updated_at":"2026-11-10T12:00:00Z"'
+check "resumo: data_mode simulation"             200 GET  /stations/1/summary "" "" '"data_mode":"simulation"'
+check "resumo: message de amostra simulada"      200 GET  /stations/1/summary "" "" '"message":"Amostra simulada'
+check "resumo pelo código da estação"            200 GET  /stations/EST-001/summary "" "" '"code":"EST-001"'
+check "resumo: cada métrica com seu horário"     200 GET  /stations/3/summary "" "" '"level_observed_at":"2026-11-10T10:00:00Z"'
+check "série: data_mode simulation"              200 GET  "/stations/1/series?metric=level&hours=24" "" "" '"data_mode":"simulation"'
+check "série: interval_minutes 60"               200 GET  "/stations/1/series?metric=level&hours=24" "" "" '"interval_minutes":60'
+check "série: pontos com timestamp"              200 GET  "/stations/1/series?metric=level&hours=24" "" "" '"points":\[{"timestamp":"'
+check "série sem metric usa level"               200 GET  /stations/1/series "" "" '"metric":"level"'
+check "série pelo código da estação"             200 GET  "/stations/EST-001/series?metric=rain&hours=12" "" "" '"unit":"mm/h"'
+check "erro: NAO-EXISTE no resumo é 404"         404 GET  /stations/NAO-EXISTE/summary "" "" STATION_NOT_FOUND
+check "erro: NAO-EXISTE na série é 404"          404 GET  "/stations/NAO-EXISTE/series?metric=level" "" "" STATION_NOT_FOUND
+check "erro também identifica dados simulados"   404 GET  /stations/NAO-EXISTE/summary "" "" '"data_mode":"simulation"'
+
 echo "-- Autenticação"
 EMAIL="smoke.$(date +%s)@cogmo.test"
 check "cadastro de usuário"                      201 POST /auth/register "{\"name\":\"Smoke\",\"email\":\"$EMAIL\",\"password\":\"123456\"}"

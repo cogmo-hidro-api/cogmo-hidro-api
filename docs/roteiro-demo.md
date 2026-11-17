@@ -27,7 +27,7 @@ Objetivo e direto: cada pessoa fala só da própria parte e mostra **uma chamada
 | --- | --- | --- |
 | Como organizaram a solução? | Camadas routes → controllers → services → repositories. Cada pessoa cuidou de uma fatia. | árvore de pastas em `src/` |
 | Como trataram dados inválidos ou ausentes? | Validadores devolvem 400 com código; o que não existe dá 404; repetido dá 409; lacunas não são preenchidas. | `Erro: métrica inválida`, `Erro: estação inexistente na série`, série com buraco |
-| Como evitaram misturar nível e chuva? | `CHECK` no banco amarra métrica e unidade; a série exige `metric` e devolve `unit`; uma chamada por métrica. | `001_init.sql` + resposta da série |
+| Como evitaram misturar nível e chuva? | `CHECK` no banco amarra métrica e unidade; a série devolve sempre `metric` e `unit` (sem `metric`, o padrão é `level`); uma chamada por métrica. | `001_init.sql` + resposta da série |
 | O que fariam depois? | Uma coisa pequena: testes automatizados com Jest + Supertest, ou paginação nas leituras. | — |
 
 ## Perguntas prováveis do professor (PI)

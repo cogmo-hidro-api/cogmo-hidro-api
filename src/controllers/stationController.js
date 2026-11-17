@@ -1,9 +1,13 @@
 const stationService = require('../services/stationService');
 
+const SUMMARY_MESSAGE = 'Amostra simulada. Não representa condições reais.';
+
 const stationController = {
   list(req, res, next) {
     try {
-      return res.status(200).json(stationService.list());
+      // stations = chave do contrato Cogmo; data = formato das outras listas da API (mantido)
+      const stations = stationService.list();
+      return res.status(200).json({ data: stations, stations });
     } catch (err) {
       next(err);
     }
@@ -44,7 +48,8 @@ const stationController = {
 
   summary(req, res, next) {
     try {
-      return res.status(200).json(stationService.summary(req.params.id));
+      // message: texto fixo exigido pelo contrato Cogmo (formato da resposta, não regra de negócio)
+      return res.status(200).json({ message: SUMMARY_MESSAGE, ...stationService.summary(req.params.id) });
     } catch (err) {
       next(err);
     }

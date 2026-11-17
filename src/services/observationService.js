@@ -1,4 +1,5 @@
 const observationRepository = require('../repositories/observationRepository');
+const stationService = require('./stationService');
 const AppError = require('../utils/AppError');
 const {
   METRIC_UNITS, parseId, parseMetric, parseHours, parseValue, parseObservedAt,
@@ -6,6 +7,9 @@ const {
 
 // Data no formato ISO 8601 UTC sem milissegundos: 2026-11-03T12:00:00Z
 const toIsoUtc = (date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+// O seed grava uma leitura por hora (campo interval_minutes do contrato Cogmo)
+const SERIES_INTERVAL_MINUTES = 60;
 
 // ---------- funções de apoio ----------
 
@@ -46,13 +50,21 @@ function ensureNoDuplicate(stationId, data, ignoreId) {
 const observationService = {
   // ---------- Série (contrato Cogmo) ----------
   getSeries(rawStationId, query) {
-    const stationId = parseId(rawStationId, 'id da estação');
-    const metric = parseMetric(query.metric);
+    // Contrato Cogmo: metric é opcional na série (padrão level); hours também (padrão 24)
+    const metricText = query.metric === undefined || query.metric === '' ? 'level' : query.metric;
+    const metric = parseMetric(metricText);
     const hours = parseHours(query.hours);
 
-    ensureStation(stationId);
+    // Aceita id numérico ou código (EST-001); estação que não existe é 404
+    const stationId = stationService.getByIdOrCode(rawStationId).id;
 
-    const base = { station_id: stationId, metric, unit: METRIC_UNITS[metric], hours };
+    const base = {
+      station_id: stationId,
+      metric,
+      unit: METRIC_UNITS[metric],
+      interval_minutes: SERIES_INTERVAL_MINUTES,
+      hours,
+    };
 
     // A janela termina na última leitura da estação (o seed usa datas fixas)
     const last = observationRepository.findLastObservedAt(stationId, metric);
@@ -64,7 +76,10 @@ const observationService = {
     const from = toIsoUtc(new Date(new Date(last).getTime() - hours * 60 * 60 * 1000));
 
     // Lacunas não são preenchidas: hora sem leitura simplesmente não aparece
-    const points = observationRepository.findSeries(stationId, metric, from, to);
+    // timestamp = nome do contrato Cogmo; observed_at = nome que a API já usava (mantido)
+    const points = observationRepository
+      .findSeries(stationId, metric, from, to)
+      .map((p) => ({ timestamp: p.observed_at, observed_at: p.observed_at, value: p.value }));
 
     return { ...base, from, to, count: points.length, points };
   },

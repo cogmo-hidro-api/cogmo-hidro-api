@@ -191,9 +191,33 @@ Leitura de estações e leituras é pública; toda escrita exige `Authorization:
 | Método | Endpoint | Descrição | Autenticação |
 | --- | --- | --- | --- |
 | GET | `/api/stations` | Lista as estações | Pública |
+| GET | `/api/health` | `{ "status": "ok", "database": "ok" }` | Pública |
 | GET | `/api/stations/{id}/summary` | Última leitura de nível (m) e de chuva (mm/h) | Pública |
 | GET | `/api/stations/{id}/series?metric=level&hours=24` | Série de nível (m), `hours` de 1 a 72 | Pública |
 | GET | `/api/stations/{id}/series?metric=rain&hours=24` | Série de chuva (mm/h), `hours` de 1 a 72 | Pública |
+
+Em `/summary` e `/series`, `{id}` pode ser o id numérico (`1`) ou o código da estação (`EST-001`).
+
+#### Como a API atende o contrato da Cogmo
+
+O contrato original está em `docs/CONTRATO_API.md` do pacote do desafio. Os campos dele saem com os **mesmos nomes**; o que acrescentamos fica ao lado, sem trocar nada de lugar.
+
+| Rota | Campos do contrato | O que acrescentamos |
+| --- | --- | --- |
+| `/health` | `status`, `database` | `ok` |
+| `/stations` | `data_mode`, `stations[]` com `id`, `name`, `river`, `municipality`, `updated_at` | `simulated`, `notice`, `data[]` (mesma lista), `code`, `state`, `latitude`, `longitude` |
+| `/summary` | `data_mode`, `message`, `station`, `latest.level_observed_at`, `latest.level_m`, `latest.rain_observed_at`, `latest.rain_mm_h` | `simulated`, `notice`, `latest.level` e `latest.rain` com unidade |
+| `/series` | `data_mode`, `station_id`, `metric`, `unit`, `interval_minutes`, `from`, `to`, `points[]` com `timestamp` e `value` | `simulated`, `notice`, `hours`, `count`, `observed_at` em cada ponto |
+
+**Diferenças em relação ao material da Cogmo, e por quê:**
+
+- **`id` numérico + `code`.** O modelo sugerido usa o código (`EST-01`) como chave primária. Usamos `id` inteiro (padrão das outras entidades do PI) e guardamos o código em `code` (`UNIQUE`). As rotas do contrato aceitam os dois.
+- **Sem `active` e `source`.** Não desativamos estações (remover é `DELETE`) e todos os dados são sintéticos; o aviso de simulação vai em toda resposta.
+- **Tabelas a mais.** `operators`, `station_operators` e `users` existem por causa do PI (3 entidades, N:N e login).
+- **Janela termina na última leitura**, não no relógio: o seed usa datas fixas para ser repetível. Em estação sem leituras, `from` e `to` vêm `null` e `points` vem `[]`.
+- **Intervalo `(from, to]`.** A leitura exatamente em `from` não entra; 24 h devolvem até 24 pontos.
+- **Códigos de erro em maiúsculas** (`STATION_NOT_FOUND`); o contrato só sugere os nomes. O formato `{ error: { code, message } }` e os status HTTP são os do contrato.
+- **4 estações no seed** (o contrato cita 3): a quarta existe para mostrar resumo `null` e série vazia.
 
 **Autenticação**
 
@@ -260,7 +284,7 @@ Status usados: 200, 201, 204, 400 (dado inválido), 401 (sem token), 404 (não e
    ```bash
    npm run dev
    ```
-   Acesse `http://localhost:3000/api/health` – a resposta deve ser `{ "ok": true }`.
+   Acesse `http://localhost:3000/api/health` – a resposta deve ser `{ "ok": true, "status": "ok", "database": "ok" }`.
 6. **Confira as rotas** (em outro terminal, com a API rodando):
    ```bash
    npm run test:smoke   # ou: bash scripts/smoke-test.sh

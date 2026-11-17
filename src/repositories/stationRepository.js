@@ -21,6 +21,11 @@ const stationRepository = {
     return db.prepare(`SELECT ${COLUMNS} FROM stations WHERE id = ?`).get(id);
   },
 
+  // Contrato Cogmo: a estação também pode ser pedida pelo código (ex.: EST-001)
+  findByCode(code) {
+    return db.prepare(`SELECT ${COLUMNS} FROM stations WHERE code = ? COLLATE NOCASE`).get(code);
+  },
+
   // Usada para impedir código repetido (ignora a própria estação no update)
   codeInUse(code, ignoreId = 0) {
     return !!db.prepare('SELECT 1 FROM stations WHERE code = ? AND id <> ?').get(code, ignoreId);

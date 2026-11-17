@@ -74,6 +74,19 @@ const stationService = {
     return station;
   },
 
+  // Rotas do contrato Cogmo (/summary e /series): aceitam o id numérico ou o código
+  // da estação (EST-001). O que não for encontrado é 404, como o contrato pede
+  // (ex.: /api/stations/NAO-EXISTE/summary), e não 400.
+  getByIdOrCode(rawId) {
+    const text = String(rawId ?? '').trim();
+    if (/^\d+$/.test(text)) return this.getById(text);
+    const station = text ? stationRepository.findByCode(text) : undefined;
+    if (!station) {
+      throw new AppError(404, 'STATION_NOT_FOUND', 'Estação não encontrada');
+    }
+    return station;
+  },
+
   create(body = {}) {
     const data = validateStation(body);
     ensureCodeFree(data.code);
@@ -100,7 +113,7 @@ const stationService = {
   // Cada métrica tem o próprio horário: um não reaproveita o horário do outro.
   // Sem leitura → null (nunca inventamos valor).
   summary(rawId) {
-    const station = this.getById(rawId);
+    const station = this.getByIdOrCode(rawId);
     const level = latestOf(station.id, 'level');
     const rain = latestOf(station.id, 'rain');
 
