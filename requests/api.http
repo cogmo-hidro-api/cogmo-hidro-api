@@ -4,7 +4,7 @@
 
 @base = http://localhost:3000/api
 
-### Health check → 200 { ok: true }
+### Health check → 200 { ok: true, status: "ok", database: "ok" }
 GET {{base}}/health
 
 
@@ -75,8 +75,14 @@ GET {{base}}/stations/1/series?metric=level&hours=72
 ### Série sem hours → usa 24
 GET {{base}}/stations/1/series?metric=level
 
-### Erro: sem metric → 400 MISSING_METRIC
+### Série sem metric → usa level (padrão do contrato Cogmo)
 GET {{base}}/stations/1/series
+
+### Resumo pelo código da estação (contrato Cogmo usa código) → 200
+GET {{base}}/stations/EST-001/summary
+
+### Série pelo código da estação → 200
+GET {{base}}/stations/EST-001/series?metric=rain&hours=12
 
 ### Erro: métrica inválida → 400 INVALID_METRIC
 GET {{base}}/stations/1/series?metric=temp&hours=24
@@ -90,8 +96,11 @@ GET {{base}}/stations/1/series?metric=level&hours=73
 ### Erro: hours não numérico → 400 INVALID_HOURS
 GET {{base}}/stations/1/series?metric=level&hours=abc
 
-### Erro: id inválido → 400 INVALID_ID
-GET {{base}}/stations/abc/series?metric=level
+### Erro: código de estação que não existe → 404 STATION_NOT_FOUND (exemplo do harness da Cogmo)
+GET {{base}}/stations/NAO-EXISTE/series?metric=level
+
+### Erro: id zero → 400 INVALID_ID
+GET {{base}}/stations/0/series?metric=level
 
 ### Erro: estação inexistente na série → 404 STATION_NOT_FOUND
 GET {{base}}/stations/999/series?metric=level

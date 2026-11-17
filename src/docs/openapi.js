@@ -19,9 +19,9 @@ const resp = (description, schema, example) => {
 };
 
 const err = (code, message, description) =>
-  resp(description, ref('Error'), { simulated: true, notice: NOTICE, error: { code, message } });
+  resp(description, ref('Error'), { data_mode: 'simulation', simulated: true, notice: NOTICE, error: { code, message } });
 
-// toda resposta ganha simulated + notice; listas vêm em data
+// toda resposta ganha data_mode + simulated + notice; listas vêm em data
 const list = (item) => ({ allOf: [ref('Simulated'), { type: 'object', properties: { data: { type: 'array', items: item } } }] });
 const obj = (schema) => ({ allOf: [ref('Simulated'), schema] });
 
@@ -38,6 +38,7 @@ const E404OB = err('OBSERVATION_NOT_FOUND', 'Leitura não encontrada', 'Leitura 
 const E404OP = err('OPERATOR_NOT_FOUND', 'Operador não encontrado', 'Operador não existe');
 
 const stationId = param('id', 'path', 'Id da estação');
+const stationIdOrCode = param('id', 'path', 'Id numérico ou código da estação (ex.: 1 ou EST-001)', { type: 'string', example: '1' });
 const observationId = param('id', 'path', 'Id da leitura');
 const operatorId = param('id', 'path', 'Id do operador');
 const metricFilter = param('metric', 'query', 'Filtra por métrica', { type: 'string', enum: METRICS }, false);
@@ -46,11 +47,16 @@ const schemas = {
   Simulated: {
     type: 'object',
     description: 'Campos presentes em toda resposta da API (regra Cogmo).',
-    properties: { simulated: { type: 'boolean', example: true }, notice: { type: 'string', example: NOTICE } },
+    properties: {
+      data_mode: { type: 'string', enum: ['simulation'], example: 'simulation', description: 'Nome do contrato Cogmo' },
+      simulated: { type: 'boolean', example: true },
+      notice: { type: 'string', example: NOTICE },
+    },
   },
   Error: {
     type: 'object',
     properties: {
+      data_mode: { type: 'string', example: 'simulation' },
       simulated: { type: 'boolean' },
       notice: { type: 'string' },
       error: {
@@ -104,7 +110,8 @@ const schemas = {
   SeriesPoint: {
     type: 'object',
     properties: {
-      observed_at: { type: 'string', format: 'date-time', example: '2026-10-31T13:00:00Z' },
+      timestamp: { type: 'string', format: 'date-time', example: '2026-10-31T13:00:00Z', description: 'Nome do contrato Cogmo' },
+      observed_at: { type: 'string', format: 'date-time', example: '2026-10-31T13:00:00Z', description: 'Mesmo valor de timestamp' },
       value: { type: 'number', example: 2.41 },
     },
   },
@@ -114,6 +121,7 @@ const schemas = {
       station_id: { type: 'integer', example: 1 },
       metric: { type: 'string', enum: METRICS },
       unit: { type: 'string', enum: ['m', 'mm/h'] },
+      interval_minutes: { type: 'integer', example: 60 },
       hours: { type: 'integer', example: 24 },
       from: { type: 'string', format: 'date-time', nullable: true, example: '2026-10-31T12:00:00Z' },
       to: { type: 'string', format: 'date-time', nullable: true, example: '2026-11-01T12:00:00Z' },
@@ -192,7 +200,7 @@ const observationErrors = {
 
 const paths = {
   '/health': {
-    get: { tags: ['Status'], summary: 'Verifica se a API está no ar', responses: { 200: resp('API no ar', undefined, { ok: true }) } },
+    get: { tags: ['Status'], summary: 'Verifica se a API está no ar', responses: { 200: resp('API no ar e banco respondendo', undefined, { ok: true, status: 'ok', database: 'ok' }) } },
   },
 
   // ---------- Autenticação ----------
@@ -232,7 +240,18 @@ const paths = {
     get: {
       tags: ['Contrato Cogmo'],
       summary: 'Lista as estações (ordem alfabética pelo nome)',
-      responses: { 200: resp('Lista de estações', list(ref('StationListItem'))) },
+      description: 'A lista vem em `stations` (nome do contrato Cogmo) e também em `data` (formato das outras listas).',
+      responses: {
+        200: resp('Lista de estações', {
+          allOf: [ref('Simulated'), {
+            type: 'object',
+            properties: {
+              stations: { type: 'array', items: ref('StationListItem') },
+              data: { type: 'array', items: ref('StationListItem') },
+            },
+          }],
+        }),
+      },
     },
     post: {
       tags: ['Estações'],
@@ -275,11 +294,12 @@ const paths = {
     get: {
       tags: ['Contrato Cogmo'],
       summary: 'Estação + última leitura de nível (m) e de chuva (mm/h)',
-      parameters: [stationId],
+      parameters: [stationIdOrCode],
       responses: {
         200: resp('Resumo', obj({
           type: 'object',
           properties: {
+            message: { type: 'string', example: 'Amostra simulada. Não representa condições reais.' },
             station: ref('Station'),
             latest: {
               type: 'object',
@@ -309,14 +329,14 @@ const paths = {
         + 'Pontos em ordem crescente de horário, intervalo (from, to]. '
         + '**Lacunas não são preenchidas**: hora sem leitura não aparece.',
       parameters: [
-        stationId,
-        param('metric', 'query', 'level (m) ou rain (mm/h)', { type: 'string', enum: METRICS }),
+        stationIdOrCode,
+        param('metric', 'query', 'level (m) ou rain (mm/h). Padrão: level', { type: 'string', enum: METRICS, default: 'level' }, false),
         param('hours', 'query', 'Tamanho da janela, de 1 a 72', { type: 'integer', minimum: 1, maximum: 72, default: 24 }, false),
       ],
       responses: {
         200: resp('Série', obj(ref('Series'))),
         400: err('INVALID_HOURS', 'hours deve ser um número inteiro de 1 a 72',
-          'metric faltando/inválida (MISSING_METRIC, INVALID_METRIC), hours fora de 1 a 72 (INVALID_HOURS) ou id inválido (INVALID_ID)'),
+          'metric inválida (INVALID_METRIC), hours fora de 1 a 72 (INVALID_HOURS) ou id inválido (INVALID_ID)'),
         404: E404ST,
       },
     },
@@ -526,7 +546,7 @@ module.exports = {
     version: '1.0.0',
     description: '**Dados simulados para fins didáticos. Não descrevem rios reais e não servem para alertas.**\n\n'
       + 'Horários em UTC (ISO 8601), nível em metros (m), chuva em milímetros por hora (mm/h). '
-      + 'Toda resposta traz `simulated` e `notice`. Erros sempre no formato `{ "error": { "code", "message" } }`.\n\n'
+      + 'Toda resposta traz `data_mode: "simulation"`, `simulated` e `notice`. Erros sempre no formato `{ "error": { "code", "message" } }`.\n\n'
       + 'Para rotas com cadeado: faça login em `POST /auth/login`, copie o `token` e clique em **Authorize**.',
   },
   servers: [{ url: '/api' }],
