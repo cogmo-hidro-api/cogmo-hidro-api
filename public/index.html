@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cogmo Hidro - Estações</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 15px;
+      color: #222;
+    }
+    h1 { margin-bottom: 5px; }
+    .aviso {
+      background: #fff3cd;
+      border: 1px solid #e0c060;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    .estacoes button {
+      margin: 0 6px 6px 0;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .estacoes button.ativa {
+      background: #1f5f99;
+      color: #fff;
+      border: 1px solid #1f5f99;
+    }
+    .resumo {
+      border: 1px solid #ccc;
+      padding: 10px 15px;
+      margin: 15px 0;
+    }
+    .resumo p { margin: 4px 0; }
+    .filtros { margin: 10px 0; }
+    .filtros select { margin-right: 10px; padding: 3px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+    th { background: #eee; }
+    .lacuna td { color: #b00; font-style: italic; }
+    .erro { color: #b00; }
+  </style>
+</head>
+<body>
+  <h1>Estações hidrológicas</h1>
+  <p class="aviso" id="aviso">Carregando...</p>
+
+  <h2>Escolha uma estação</h2>
+  <div class="estacoes" id="estacoes"></div>
+
+  <div id="detalhe" hidden>
+    <div class="resumo">
+      <h3 id="nomeEstacao"></h3>
+      <p id="local"></p>
+      <p id="nivel"></p>
+      <p id="chuva"></p>
+    </div>
+
+    <h3>Série</h3>
+    <div class="filtros">
+      Métrica:
+      <select id="metrica">
+        <option value="level">Nível (m)</option>
+        <option value="rain">Chuva (mm/h)</option>
+      </select>
+      Período:
+      <select id="horas">
+        <option value="24">24 horas</option>
+        <option value="48">48 horas</option>
+        <option value="72">72 horas</option>
+      </select>
+    </div>
+    <p id="infoSerie"></p>
+    <table>
+      <thead><tr><th>Horário (UTC)</th><th>Valor</th></tr></thead>
+      <tbody id="tabela"></tbody>
+    </table>
+  </div>
+
+  <script>
+    let estacaoAtual = null;
+
+    // Busca na API e devolve o JSON
+    async function buscar(url) {
+      const resp = await fetch(url);
+      const body = await resp.json();
+      if (!resp.ok) throw new Error(body.error ? body.error.message : 'Erro ' + resp.status);
+      return body;
+    }
+
+    // "2026-11-10T12:00:00Z" -> "10/11 12:00"
+    function formatarHora(iso) {
+      const d = new Date(iso);
+      const dd = String(d.getUTCDate()).padStart(2, '0');
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const hh = String(d.getUTCHours()).padStart(2, '0');
+      const mi = String(d.getUTCMinutes()).padStart(2, '0');
+      return dd + '/' + mm + ' ' + hh + ':' + mi;
+    }
+
+    async function carregarEstacoes() {
+      const div = document.getElementById('estacoes');
+      try {
+        const body = await buscar('/api/stations');
+        document.getElementById('aviso').textContent = body.notice;
+
+        body.stations.forEach((est) => {
+          const botao = document.createElement('button');
+          botao.textContent = est.code + ' - ' + est.name;
+          botao.dataset.id = est.id;
+          botao.addEventListener('click', () => selecionar(est.id));
+          div.appendChild(botao);
+        });
+      } catch (e) {
+        div.innerHTML = '<p class="erro">Não foi possível carregar as estações. A API está rodando?</p>';
+      }
+    }
+
+    async function selecionar(id) {
+      estacaoAtual = id;
+      document.querySelectorAll('#estacoes button').forEach((b) => {
+        b.classList.toggle('ativa', Number(b.dataset.id) === id);
+      });
+
+      let body;
+      try {
+        body = await buscar('/api/stations/' + id + '/summary');
+      } catch (e) {
+        document.getElementById('nivel').textContent = 'Erro: ' + e.message;
+        return;
+      }
+      const st = body.station;
+      const ult = body.latest;
+
+      document.getElementById('nomeEstacao').textContent = st.code + ' - ' + st.name;
+      document.getElementById('local').textContent = st.river + ' · ' + st.municipality + '/' + st.state;
+
+      document.getElementById('nivel').textContent = ult.level_m === null
+        ? 'Nível: sem leitura'
+        : 'Nível: ' + ult.level_m + ' m (' + formatarHora(ult.level_observed_at) + ' UTC)';
+
+      document.getElementById('chuva').textContent = ult.rain_mm_h === null
+        ? 'Chuva: sem leitura'
+        : 'Chuva: ' + ult.rain_mm_h + ' mm/h (' + formatarHora(ult.rain_observed_at) + ' UTC)';
+
+      document.getElementById('detalhe').hidden = false;
+      carregarSerie();
+    }
+
+    async function carregarSerie() {
+      if (!estacaoAtual) return;
+      const metrica = document.getElementById('metrica').value;
+      const horas = document.getElementById('horas').value;
+      const tabela = document.getElementById('tabela');
+      tabela.innerHTML = '';
+
+      let s;
+      try {
+        s = await buscar('/api/stations/' + estacaoAtual + '/series?metric=' + metrica + '&hours=' + horas);
+      } catch (e) {
+        document.getElementById('infoSerie').textContent = 'Erro ao carregar a série: ' + e.message;
+        return;
+      }
+
+      if (s.points.length === 0) {
+        document.getElementById('infoSerie').textContent = 'Essa estação não tem leituras.';
+        return;
+      }
+      document.getElementById('infoSerie').textContent =
+        s.count + ' leituras em ' + s.hours + ' h (unidade: ' + s.unit + '). Linhas em vermelho = hora sem leitura (lacuna, não preenchida).';
+
+      // Monta a tabela e marca onde passou mais de 1 hora entre uma leitura e outra
+      let anterior = null;
+      s.points.forEach((p) => {
+        const atual = new Date(p.timestamp).getTime();
+        if (anterior !== null && atual - anterior > s.interval_minutes * 60 * 1000) {
+          const faltam = Math.round((atual - anterior) / (s.interval_minutes * 60 * 1000)) - 1;
+          const lin = document.createElement('tr');
+          lin.className = 'lacuna';
+          lin.innerHTML = '<td colspan="2">sem leitura (' + faltam + ' h)</td>';
+          tabela.appendChild(lin);
+        }
+        const tr = document.createElement('tr');
+        const td1 = document.createElement('td');
+        const td2 = document.createElement('td');
+        td1.textContent = formatarHora(p.timestamp);
+        td2.textContent = p.value + ' ' + s.unit;
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        tabela.appendChild(tr);
+        anterior = atual;
+      });
+    }
+
+    document.getElementById('metrica').addEventListener('change', carregarSerie);
+    document.getElementById('horas').addEventListener('change', carregarSerie);
+
+    carregarEstacoes();
+  </script>
+</body>
+</html>
