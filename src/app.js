@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const stationOperatorRoutes = require('./routes/stationOperatorRoutes');
 const seriesRoutes = require('./routes/seriesRoutes');
 const observationRoutes = require('./routes/observationRoutes');
@@ -19,6 +20,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Front básico (public/index.html), aberto em http://localhost:3000
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Rota de verificação: confirma que a API está no ar e que o banco responde.
 // Segue as mesmas camadas das outras rotas (routes -> controller -> service -> repository).
